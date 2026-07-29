@@ -1,10 +1,14 @@
 import os
-import requests
-import string
 import random
+import string
+import requests
+from dotenv import load_dotenv
 
-# Replace this with your actual Web API Key from the Firebase Console (Project Settings > General)
-FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY", "AIzaSyCSGAB7vE-yuBSDeRx82UJepa5j9yVIgfY")
+# Load environment variables from the .env file in the root directory
+load_dotenv()
+
+# Retrieve the API key from environment variables
+FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_WEB_API_KEY")
 
 def generate_random_email():
     random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
@@ -16,8 +20,10 @@ def generate_random_password():
 def test_firebase_auth():
     print("--- Firebase Auth Simulator ---")
     
-    if FIREBASE_WEB_API_KEY == "AIzaSyCSGAB7vE-yuBSDeRx82UJepa5j9yVIgfY":
-        print("WARNING: Using dummy API Key. Please set FIREBASE_WEB_API_KEY environment variable or replace it in the script.")
+    if not FIREBASE_WEB_API_KEY:
+        print("ERROR: FIREBASE_WEB_API_KEY is missing or not found in your .env file.")
+        print("Please ensure your .env file contains: FIREBASE_WEB_API_KEY=your_actual_key")
+        return
     
     # 1. Sign up a new user via Firebase Auth REST API
     signup_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_WEB_API_KEY}"
@@ -41,8 +47,9 @@ def test_firebase_auth():
     
     data = response.json()
     id_token = data.get("idToken")
+    firebase_uid = data.get("localId")  # Extracted Firebase UID from Identity Platform
     
-    print(f"User created successfully!")
+    print("User created successfully!")
     print(f"Obtained ID Token: {id_token[:20]}... (truncated for security)")
     
     # 2. Make authenticated request to local FastAPI endpoint
@@ -51,9 +58,13 @@ def test_firebase_auth():
         "Authorization": f"Bearer {id_token}"
     }
     
+    # Updated payload matching the exact backend Pydantic schema
     profile_payload = {
+        "firebase_uid": firebase_uid,
         "full_name": "Dr. Test User",
+        "education_qualification": "MBBS, MD",
         "specialization": "General Medicine",
+        "clinic_name": "Metropolis General Hospital",
         "city": "Metropolis"
     }
     

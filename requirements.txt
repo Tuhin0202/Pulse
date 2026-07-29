@@ -1,6 +1,6 @@
 fastapi
 supabase
-google-generativeai
+google-genai
 pydantic
 pydantic-settings
 python-multipart

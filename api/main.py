@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import patients, prescriptions, reports, doctors
+from api.routers import patients, prescriptions, reports, doctors, documents
 
 app = FastAPI(title="PlusHealth API", version="1.0.0")
 
@@ -17,6 +17,7 @@ app.include_router(patients.router)
 app.include_router(prescriptions.router)
 app.include_router(reports.router)
 app.include_router(doctors.router)
+app.include_router(documents.router)
 
 @app.get("/api/health")
 def health_check():

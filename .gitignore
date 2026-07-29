@@ -12,7 +12,7 @@ ENV/
 htmlcov/
 dist/
 build/
-
+test_documents/
 # React / Node.js
 node_modules/
 /src/dist/
@@ -35,7 +35,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-test_documents/
+
 
 # Vercel
 .vercel

@@ -1,0 +1,579 @@
+import React, { useState } from 'react';
+import { Bell, Search, Star, Filter,  Edit2, Calendar, Droplet, ShieldCheck, MapPin, User, ClipboardList, Users, LogOut, Settings, FileText, Image as ImageIcon, Download, Eye } from 'lucide-react';
+import { PatientData } from '../types';
+import { ViewDoctorProfile } from './ViewDoctorProfile';
+import { BookAppointment } from './BookAppointment';
+import { HealthAssistant } from './HealthAssistant';
+
+import { PulseLogo } from './PulseLogo';
+
+interface PatientDashboardProps {
+  onEditProfile?: () => void;
+  patientData?: PatientData;
+}
+
+export function PatientDashboard({ onEditProfile, patientData }: PatientDashboardProps) {
+  const [activeTab, setActiveTab] = useState('Dashboard');
+  const [subTab, setSubTab] = useState('Personal Details');
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const navItems = ['Dashboard', 'Appointments', 'Prescriptions', 'Health Assistant'];
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [bookingDoctor, setBookingDoctor] = useState<any>(null);
+  const [bookings, setBookings] = useState<{[doctorId: number]: { date: string, slot: string }}>({});
+
+  const mockDoctors = [
+    { id: 1, name: 'Dr. Sarah Jenkins', category: 'Cardiology', city: 'San Francisco', rating: 4.9, image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=faces', experience: '15 years' },
+    { id: 2, name: 'Dr. Michael Chen', category: 'Orthopedics', city: 'New York', rating: 4.8, image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=faces', experience: '12 years' },
+    { id: 3, name: 'Dr. Emily Rodriguez', category: 'Pediatrics', city: 'San Francisco', rating: 4.7, image: 'https://images.unsplash.com/photo-1594824436951-7f12689c1682?w=150&h=150&fit=crop&crop=faces', experience: '8 years' },
+    { id: 4, name: 'Dr. James Wilson', category: 'Dermatology', city: 'Chicago', rating: 4.9, image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&h=150&fit=crop&crop=faces', experience: '20 years' },
+    { id: 5, name: 'Dr. Olivia Martinez', category: 'General Practice', city: 'Los Angeles', rating: 4.6, image: 'https://images.unsplash.com/photo-1594824436951-7f12689c1682?w=150&h=150&fit=crop&crop=faces', experience: '10 years' },
+    { id: 6, name: 'Dr. William Brown', category: 'Cardiology', city: 'New York', rating: 4.8, image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&h=150&fit=crop&crop=faces', experience: '18 years' }
+  ];
+
+  const filteredDoctors = mockDoctors.filter(doc => {
+    return (
+      doc.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      (cityFilter === '' || doc.city === cityFilter) &&
+      (categoryFilter === '' || doc.category === categoryFilter)
+    );
+  });
+
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const todaysBookings = Object.entries(bookings).filter(([doctorId, booking]: [string, any]) => {
+    const bookingDate = new Date(booking.date);
+    return bookingDate >= todayStart && bookingDate <= todayEnd;
+  }).map(([doctorId, booking]: [string, any]) => {
+    return {
+      doctor: mockDoctors.find(d => d.id === parseInt(doctorId)),
+      ...booking
+    };
+  });
+
+  const mockRecords = [
+    { id: 1, title: 'Complete Blood Count', type: 'Lab Report', date: 'Aug 01, 2026', doctor: 'Dr. Sarah Jenkins', format: 'PDF', size: '1.2 MB' },
+    { id: 2, title: 'Cardiology Prescription', type: 'Prescriptions', date: 'Jul 28, 2026', doctor: 'Dr. Jane Smith', format: 'JPG', size: '850 KB' },
+    { id: 3, title: 'MRI Scan Report', type: 'Lab Report', date: 'Jul 15, 2026', doctor: 'Dr. Michael Chen', format: 'PNG', size: '2.4 MB' },
+    { id: 4, title: 'General Checkup Prescription', type: 'Prescriptions', date: 'Jun 10, 2026', doctor: 'Dr. Emily White', format: 'PDF', size: '450 KB' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#f8fafc]">
+      <header className="fixed top-0 left-0 right-0 h-[72px] bg-white border-b border-outline-variant z-50 flex items-center justify-between px-6">
+        <PulseLogo />
+        <nav className="hidden md:flex space-x-8">
+          {navItems.map(item => (
+            <button
+              key={item}
+              onClick={() => setActiveTab(item)}
+              className={`text-[14px] font-medium h-[72px] relative flex items-center ${
+                activeTab === item ? 'text-[#005bb5]' : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              {item}
+              {activeTab === item && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#005bb5]" />
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="flex items-center space-x-6">
+          <div className="relative">
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="text-on-surface-variant hover:text-on-surface relative focus:outline-none"
+            >
+              <Bell className="w-5 h-5" />
+              {Object.keys(bookings).length > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full"></span>
+              )}
+            </button>
+            
+            {showNotifications && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)}></div>
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-outline-variant py-2 z-50 max-h-[400px] overflow-y-auto">
+                  <div className="px-4 py-2 border-b border-outline-variant">
+                    <h3 className="font-bold text-[16px] text-on-surface">Notifications</h3>
+                  </div>
+                  {Object.keys(bookings).length === 0 ? (
+                    <div className="px-4 py-8 text-center text-on-surface-variant text-[14px]">
+                      No new notifications
+                    </div>
+                  ) : (
+                    <div className="flex flex-col">
+                      {Object.entries(bookings).map(([doctorId, booking]: [string, any]) => {
+                        const doctor = mockDoctors.find(d => d.id === parseInt(doctorId));
+                        const bookingDate = new Date(booking.date);
+                        return (
+                          <div key={doctorId} className="px-4 py-3 border-b border-outline-variant hover:bg-[#f8fafc] transition-colors last:border-0">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 rounded-full bg-[#eff6ff] text-[#005bb5] flex items-center justify-center shrink-0 mt-0.5">
+                                <Calendar className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h4 className="text-[14px] font-bold text-on-surface mb-0.5">Appointment Booked</h4>
+                                <p className="text-[13px] text-on-surface-variant leading-snug">
+                                  You have an appointment with {doctor?.name} on {bookingDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {booking.slot}.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="relative">
+            <button 
+              onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+              className="w-10 h-10 rounded-full bg-[#005bb5] text-white flex items-center justify-center font-bold text-[14px] focus:outline-none focus:ring-2 focus:ring-[#005bb5] focus:ring-offset-2"
+            >
+              JD
+            </button>
+            {isProfileDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsProfileDropdownOpen(false)}></div>
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-outline-variant py-1 z-50">
+                  <button 
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      setActiveTab('Profile');
+                    }}
+                    className="w-full text-left px-4 py-2 text-[14px] text-on-surface hover:bg-surface-container-lowest flex items-center transition-colors"
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      // In a real app, go to settings
+                    }}
+                    className="w-full text-left px-4 py-2 text-[14px] text-on-surface hover:bg-surface-container-lowest flex items-center transition-colors"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </button>
+                  <div className="h-[1px] bg-outline-variant my-1 w-full" />
+                  <button 
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      // In a real app, handle logout
+                      window.location.reload(); 
+                    }}
+                    className="w-full text-left px-4 py-2 text-[14px] text-red-600 hover:bg-surface-container-lowest flex items-center transition-colors"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="pt-[104px] pb-12 px-6 max-w-5xl mx-auto space-y-6">
+        {bookingDoctor ? (
+          <BookAppointment 
+            doctor={bookingDoctor}
+            onBack={() => setBookingDoctor(null)}
+            onBook={(date, slot) => {
+              setBookings(prev => ({
+                ...prev,
+                [bookingDoctor.id]: { date, slot }
+              }));
+            }}
+            onCancel={() => {
+              setBookings(prev => {
+                const newB = {...prev};
+                delete newB[bookingDoctor.id];
+                return newB;
+              });
+              setBookingDoctor(null);
+            }}
+          />
+        ) : selectedDoctor ? (
+          <ViewDoctorProfile 
+            doctor={selectedDoctor} 
+            onBack={() => setSelectedDoctor(null)} 
+          />
+        ) : activeTab === 'Appointments' ? (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <h1 className="text-[24px] font-bold text-on-surface">Book an Appointment</h1>
+            </div>
+
+            <div className="bg-white rounded-xl border border-outline-variant p-4 shadow-sm flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-on-surface-variant" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search doctor by name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-2 border border-outline-variant rounded-md leading-5 bg-white placeholder-on-surface-variant focus:outline-none focus:ring-1 focus:ring-[#005bb5] focus:border-[#005bb5] sm:text-sm"
+                />
+              </div>
+              
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MapPin className="h-4 w-4 text-on-surface-variant" />
+                  </div>
+                  <select
+                    value={cityFilter}
+                    onChange={(e) => setCityFilter(e.target.value)}
+                    className="block w-full pl-9 pr-10 py-2 text-base border border-outline-variant focus:outline-none focus:ring-1 focus:ring-[#005bb5] focus:border-[#005bb5] sm:text-sm rounded-md appearance-none"
+                  >
+                    <option value="">All Cities</option>
+                    <option value="San Francisco">San Francisco</option>
+                    <option value="New York">New York</option>
+                    <option value="Chicago">Chicago</option>
+                    <option value="Los Angeles">Los Angeles</option>
+                  </select>
+                </div>
+                
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Filter className="h-4 w-4 text-on-surface-variant" />
+                  </div>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="block w-full pl-9 pr-10 py-2 text-base border border-outline-variant focus:outline-none focus:ring-1 focus:ring-[#005bb5] focus:border-[#005bb5] sm:text-sm rounded-md appearance-none"
+                  >
+                    <option value="">All Categories</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                    <option value="Dermatology">Dermatology</option>
+                    <option value="General Practice">General Practice</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredDoctors.length > 0 ? (
+                filteredDoctors.map(doctor => (
+                  <div key={doctor.id} className="bg-white rounded-xl border border-outline-variant p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                    <div className="flex items-start space-x-4 mb-4">
+                      <img src={doctor.image} alt={doctor.name} className="w-16 h-16 rounded-full object-cover border border-outline-variant" />
+                      <div>
+                        <h3 className="text-[16px] font-bold text-on-surface">{doctor.name}</h3>
+                        <p className="text-[13px] text-[#005bb5] font-medium">{doctor.category}</p>
+                        <div className="flex items-center mt-1 text-[12px] text-on-surface-variant">
+                          <Star className="w-3.5 h-3.5 text-orange-400 fill-orange-400 mr-1" />
+                          <span>{doctor.rating} Rating</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 mb-5 text-[12px] text-on-surface-variant border-y border-outline-variant py-3">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-on-surface">Experience</span>
+                        <span>{doctor.experience}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-on-surface">Location</span>
+                        <span>{doctor.city}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-auto grid grid-cols-2 gap-3">
+                      {bookings[doctor.id] ? (
+                        <div className="col-span-2 flex flex-col gap-2">
+                           <div className="text-[12px] font-medium text-[#059669] bg-[#ecfdf5] p-2 rounded-md border border-[#34d399] flex flex-col">
+                              <span>Booked: {new Date(bookings[doctor.id].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {bookings[doctor.id].slot}</span>
+                           </div>
+                           <button 
+                             onClick={() => {
+                               const newBookings = { ...bookings };
+                               delete newBookings[doctor.id];
+                               setBookings(newBookings);
+                             }}
+                             className="w-full px-3 py-2 border border-red-600 text-red-600 rounded-md text-[13px] font-bold hover:bg-red-50 transition-colors"
+                           >
+                             Cancel Booking
+                           </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button 
+                            onClick={() => setSelectedDoctor(doctor)}
+                            className="px-3 py-2 border border-[#005bb5] text-[#005bb5] rounded-md text-[13px] font-bold hover:bg-[#eff6ff] transition-colors"
+                          >
+                            View Profile
+                          </button>
+                          <button 
+                            onClick={() => setBookingDoctor(doctor)}
+                            className="px-3 py-2 bg-[#005bb5] text-white rounded-md text-[13px] font-bold hover:bg-primary/90 transition-colors"
+                          >
+                            Book Appt
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full bg-white rounded-xl border border-outline-variant p-8 text-center">
+                  <p className="text-on-surface-variant">No doctors found matching your criteria.</p>
+                  <button 
+                    onClick={() => { setSearchQuery(''); setCityFilter(''); setCategoryFilter(''); }}
+                    className="mt-4 px-4 py-2 bg-[#f1f5f9] text-on-surface rounded-md text-[14px] font-medium hover:bg-[#e2e8f0] transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'Prescriptions' ? (
+          <div className="space-y-6">
+            <h1 className="text-[24px] font-bold text-on-surface">Prescriptions & Reports</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {mockRecords.map((record) => (
+                <div key={record.id} className="bg-white rounded-xl border border-outline-variant p-5 flex flex-col h-full shadow-sm hover:border-[#005bb5] transition-colors">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                        record.format === 'PDF' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+                      }`}>
+                        {record.format === 'PDF' ? <FileText className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <h3 className="text-[15px] font-bold text-on-surface line-clamp-1" title={record.title}>{record.title}</h3>
+                        <p className="text-[12px] text-on-surface-variant font-medium mt-0.5">{record.type}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 mb-6 flex-1">
+                    <div className="flex items-center text-[13px] text-on-surface-variant">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      {record.date}
+                    </div>
+                    <div className="flex items-center text-[13px] text-on-surface-variant">
+                      <User className="w-4 h-4 mr-2" />
+                      {record.doctor}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-outline-variant mt-auto">
+                    <span className="text-[12px] font-medium text-on-surface-variant uppercase bg-[#f1f5f9] px-2 py-1 rounded">
+                      {record.format} • {record.size}
+                    </span>
+                    <div className="flex space-x-2">
+                      <button className="p-2 text-on-surface-variant hover:text-[#005bb5] hover:bg-[#eff6ff] rounded-md transition-colors" title="View Document">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-on-surface-variant hover:text-[#059669] hover:bg-[#ecfdf5] rounded-md transition-colors" title="Download Document">
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : activeTab === 'Health Assistant' ? (
+          <div className="space-y-6">
+            <h1 className="text-[24px] font-bold text-on-surface">Health Assistant</h1>
+            <HealthAssistant />
+          </div>
+        ) : activeTab === 'Dashboard' ? (
+          <div className="space-y-6">
+            <div className="mb-6 flex justify-between items-center">
+              <div>
+                <h1 className="text-[32px] font-bold text-on-surface mb-1">
+                  Welcome back, {patientData?.fullName || 'John Doe'}
+                </h1>
+                <p className="text-on-surface-variant text-[15px]">
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-outline-variant p-6">
+              <h2 className="text-[20px] font-bold text-on-surface mb-6 flex items-center">
+                <Calendar className="w-5 h-5 mr-2 text-[#005bb5]" />
+                Today's Appointments
+              </h2>
+
+              {todaysBookings.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-16 h-16 bg-[#f1f5f9] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Calendar className="w-8 h-8 text-[#94a3b8]" />
+                  </div>
+                  <h3 className="text-[16px] font-bold text-on-surface mb-2">No Appointments Today</h3>
+                  <p className="text-[14px] text-on-surface-variant max-w-md mx-auto">
+                    You don't have any appointments scheduled for today. Check your Appointments tab to book a new one.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {todaysBookings.map((booking, idx) => (
+                    booking.doctor && (
+                      <div key={idx} className="flex flex-col md:flex-row items-start md:items-center p-4 border border-outline-variant rounded-xl gap-4">
+                        <img src={booking.doctor.image} alt={booking.doctor.name} className="w-16 h-16 rounded-full object-cover border border-outline-variant" />
+                        <div className="flex-1">
+                          <h3 className="text-[18px] font-bold text-on-surface">{booking.doctor.name}</h3>
+                          <p className="text-[14px] text-on-surface-variant">{booking.doctor.category} Specialist • {booking.doctor.city}</p>
+                        </div>
+                        <div className="bg-[#eff6ff] px-4 py-2 rounded-lg text-right md:text-left w-full md:w-auto">
+                          <div className="text-[12px] font-bold text-[#005bb5] uppercase mb-1">Time Slot</div>
+                          <div className="text-[16px] font-bold text-[#005bb5]">{booking.slot}</div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                             setSelectedDoctor(booking.doctor);
+                             setActiveTab('Appointments');
+                          }}
+                          className="px-4 py-2 border border-[#005bb5] text-[#005bb5] rounded-lg text-[14px] font-bold hover:bg-[#eff6ff] transition-colors w-full md:w-auto mt-2 md:mt-0"
+                        >
+                          View Profile
+                        </button>
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'Profile' ? (
+          <>
+            <div className="bg-white rounded-xl border border-outline-variant p-8 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center space-x-6">
+              <div className="relative">
+                <div className="w-[100px] h-[100px] rounded-full bg-surface-container flex items-center justify-center border-[3px] border-white shadow-md text-[36px] font-bold text-on-surface">
+                  {patientData?.fullName ? patientData.fullName.charAt(0).toUpperCase() : 'J'}
+                </div>
+                <div className="absolute bottom-1 right-1 w-7 h-7 bg-[#059669] rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
+                  {patientData?.bloodGroup?.replace(/[^A-Za-z+-]/g, '') || 'O+'}
+                </div>
+              </div>
+              <div>
+                <h1 className="text-[32px] font-bold text-on-surface leading-tight mb-3">{patientData?.fullName || 'John Doe'}</h1>
+                <div className="flex flex-wrap gap-3">
+                  {patientData?.dateOfBirth && (
+                    <div className="flex items-center px-3 py-1 bg-[#f1f5f9] rounded-full text-[13px] font-medium text-on-surface-variant">
+                      <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                      {patientData.dateOfBirth}
+                    </div>
+                  )}
+                  <div className="flex items-center px-3 py-1 bg-[#eff6ff] rounded-full text-[13px] font-medium text-[#005bb5]">
+                    <Droplet className="w-3.5 h-3.5 mr-1.5" />
+                    Group {patientData?.bloodGroup || 'O+'}
+                  </div>
+                  <div className="flex items-center px-3 py-1 bg-[#ecfdf5] rounded-full text-[13px] font-medium text-[#059669]">
+                    <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                    Verified Patient
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={onEditProfile}
+              className="flex items-center justify-center px-5 py-2 bg-[#005bb5] text-white rounded-md text-[14px] font-bold hover:bg-primary/90 transition-colors shadow-sm self-start md:self-center"
+            >
+              <Edit2 className="w-4 h-4 mr-2" />
+              Edit Profile
+            </button>
+          </div>
+        </div>
+
+        <div className="flex space-x-8 border-b border-outline-variant pt-2">
+          {['Personal Details'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setSubTab(tab)}
+              className={`pb-3 text-[14px] font-bold relative ${
+                subTab === tab ? 'text-[#005bb5]' : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              {tab}
+              {subTab === tab && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#005bb5]" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {subTab === 'Personal Details' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-xl border border-outline-variant p-6 shadow-sm">
+                <h2 className="text-[18px] font-bold text-on-surface mb-6">Basic Information</h2>
+                <div className="grid grid-cols-2 gap-y-6">
+                  <div>
+                    <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Full Name</div>
+                    <div className="text-[15px] text-on-surface">{patientData?.fullName || 'John Doe'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Date of Birth</div>
+                    <div className="text-[15px] text-on-surface">{patientData?.dateOfBirth || 'May 12, 1992'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Blood Group</div>
+                    <div className="text-[15px] text-on-surface">{patientData?.bloodGroup || 'O Positive (O+)'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Gender</div>
+                    <div className="text-[15px] text-on-surface">Male</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-outline-variant p-6 shadow-sm">
+                <h2 className="text-[18px] font-bold text-on-surface mb-6">Contact Details</h2>
+                <div className="space-y-6">
+                  <div>
+                    <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Residential Address</div>
+                    <div className="flex items-start text-[15px] text-on-surface">
+                      <MapPin className="w-4 h-4 mr-2 text-[#005bb5] shrink-0 mt-0.5" />
+                      {patientData?.address || '123 Health St, Wellness District, San Francisco, CA 94103'}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Phone</div>
+                      <div className="text-[15px] text-on-surface">{patientData?.phone || '+1 (555) 123-4567'}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Email</div>
+                      <div className="text-[15px] text-on-surface">{patientData?.email || 'john.doe@email.com'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#f1f5f9] rounded-xl border border-outline-variant h-48 shadow-sm">
+            </div>
+          </div>
+        )}
+          </>
+        ) : null}
+      </main>
+    </div>
+  );
+}

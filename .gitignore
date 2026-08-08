@@ -13,6 +13,8 @@ htmlcov/
 dist/
 build/
 test_documents/
+uploads/
+local_dev.db
 # React / Node.js
 node_modules/
 /src/dist/

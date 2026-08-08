@@ -1,9 +1,13 @@
 fastapi
 supabase
 google-generativeai
+google-genai
 pydantic
 pydantic-settings
 python-multipart
+python-dotenv
 uvicorn
 firebase-admin
 requests
+SQLAlchemy
+aiosqlite

@@ -146,27 +146,47 @@ def test_phone_auth():
 
 def send_to_fastapi(id_token, firebase_uid, name):
     print("\n-> Sending profile to FastAPI backend...")
-    fastapi_url = "http://127.0.0.1:8000/api/doctors/create"
+    
+    # Step 1: Register user with role
+    register_url = "http://127.0.0.1:8000/api/v1/auth/login"
+    print("  1. Registering user via /api/v1/auth/login...")
+    
+    try:
+        # Use login endpoint which auto-creates users
+        login_response = requests.post(
+            register_url,
+            json={
+                "email": f"{name.replace(' ', '').lower()}@test.com",
+                "password": "SecurePassword123!",
+                "role": "doctor"
+            }
+        )
+        print(f"  Login/Register Status: {login_response.status_code}")
+    except requests.exceptions.ConnectionError:
+        print("  Failed to connect. Skipping login step.")
+    
+    # Step 2: Create doctor profile
+    profile_url = "http://127.0.0.1:8000/api/v1/doctor/profile"
+    print("  2. Creating doctor profile via /api/v1/doctor/profile...")
     
     profile_payload = {
-        "firebase_uid": firebase_uid,
-        "full_name": name,
-        "education_qualification": "MBBS, MD",
+        "fullName": name,
+        "qualification": "MBBS, MD",
         "specialization": "General Medicine",
-        "clinic_name": "Test Clinic",
+        "clinicName": "Test Clinic",
         "city": "Metropolis"
     }
     
     try:
         api_response = requests.post(
-            fastapi_url, 
+            profile_url, 
             json=profile_payload, 
             headers={"Authorization": f"Bearer {id_token}"}
         )
-        print(f"FastAPI Status: {api_response.status_code}")
-        print(api_response.json())
+        print(f"  FastAPI Status: {api_response.status_code}")
+        print(f"  Response: {api_response.json()}")
     except requests.exceptions.ConnectionError:
-        print("Failed to connect to FastAPI server. Make sure uvicorn is running.")
+        print("  Failed to connect to FastAPI server. Make sure uvicorn is running.")
 
 
 def clean_up_user(id_token, identifier):

@@ -1,5 +1,6 @@
 import os
 import sys
+import asyncio
 
 # Add project root to sys.path so we can import from api
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,7 +13,7 @@ from api.services.ocr import extract_prescription_text
 # 2. Place a dummy image file named 'sample_rx.jpg' inside the 'test_documents' folder.
 # 3. Run this script to test the OCR extraction locally bypassing FastAPI.
 
-if __name__ == "__main__":
+async def main():
     test_image_path = os.path.join(project_root, "test_documents", "sample_rx.jpg")
     
     if not os.path.exists(test_image_path):
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     print(f"Testing OCR on: {test_image_path}")
     print("Extracting text... please wait.")
     
-    extracted_text = extract_prescription_text(test_image_path)
+    extracted_text = await extract_prescription_text(test_image_path)
     
     print("\n--- Extracted Text ---")
     if extracted_text:
@@ -31,3 +32,6 @@ if __name__ == "__main__":
     else:
         print("Failed to extract text or no text returned.")
     print("----------------------")
+
+if __name__ == "__main__":
+    asyncio.run(main())

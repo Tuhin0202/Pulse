@@ -1,20 +1,51 @@
 import { useEffect } from 'react';
 import { AtSign, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
-interface EmailVerificationProps {
-  email?: string;
-  onBack: () => void;
-  onVerified: () => void;
-}
+export function EmailVerification() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
+  const context = searchParams.get('context');
+  const email = location.state?.contact || 'user@example.com';
+  const role = location.state?.role || 'patient';
 
-export function EmailVerification({ email = 'user@example.com', onBack, onVerified }: EmailVerificationProps) {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onVerified();
-    }, 10000);
+    const timer = setTimeout(async () => {
+      if (context === 'signup') {
+        try {
+          // Placeholder for assigning the role after verification
+          // await fetch('/api/v1/auth/assign-role', { method: 'POST', body: JSON.stringify({ role }) });
+        } catch (e) {
+          console.error(e);
+        }
+        
+        if (role === 'doctor') {
+          navigate('/doctor/setup', { state: { role } });
+        } else {
+          navigate('/patient/setup', { state: { role } });
+        }
+      } else if (context === 'reset') {
+        navigate('/reset-password', { state: { role } });
+      } else {
+        // Fallback
+        navigate('/login');
+      }
+    }, 4000); // reduced from 10s to 4s for better UX testing
     return () => clearTimeout(timer);
-  }, [onVerified]);
+  }, [navigate, context, role]);
+
+  const handleResend = async () => {
+    try {
+      // Placeholder endpoint
+      // await fetch('/api/v1/auth/resend-email', { method: 'POST', body: JSON.stringify({ email }) });
+      console.log('Resent email to', email);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-72px)] p-4">
@@ -52,7 +83,10 @@ export function EmailVerification({ email = 'user@example.com', onBack, onVerifi
             />
           </div>
           
-          <button className="w-full bg-[#005bb5] hover:bg-primary/90 text-on-primary py-3 rounded-md text-[16px] font-bold flex items-center justify-center transition-colors shadow-sm mb-4">
+          <button 
+            onClick={handleResend}
+            className="w-full bg-[#005bb5] hover:bg-primary/90 text-on-primary py-3 rounded-md text-[16px] font-bold flex items-center justify-center transition-colors shadow-sm mb-4"
+          >
             Resend Verification Link <Send className="w-4 h-4 ml-2" />
           </button>
           
@@ -67,7 +101,7 @@ export function EmailVerification({ email = 'user@example.com', onBack, onVerifi
           </div>
           
           <button 
-            onClick={onBack}
+            onClick={() => navigate('/login')}
             className="w-full flex items-center justify-center text-[14px] font-bold text-[#005bb5] hover:underline"
           >
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to Login

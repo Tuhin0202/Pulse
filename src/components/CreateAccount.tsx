@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, Shield, ArrowRight, ArrowLeft, RectangleEllipsis } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface CreateAccountProps {
-  onBack: () => void;
-  onUpdateCredentials: (type: 'email' | 'phone', contact: string) => void;
-  initialContact?: string;
   mode?: 'register' | 'reset-password';
 }
 
-export function CreateAccount({ onBack, onUpdateCredentials, initialContact = '', mode = 'reset-password' }: CreateAccountProps) {
+export function CreateAccount({ mode = 'reset-password' }: CreateAccountProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const role = location.state?.role || 'patient';
+  
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
-  const [contact, setContact] = useState(initialContact);
+  const [contact, setContact] = useState('');
   const [contactError, setContactError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const checks = [
     { label: 'At least 8 characters', met: password.length >= 8 },
@@ -26,17 +29,39 @@ export function CreateAccount({ onBack, onUpdateCredentials, initialContact = ''
   const strength = checks.filter(c => c.met).length;
   const strengthPercentage = (strength / 5) * 100;
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     const cleanContact = contact.trim();
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanContact);
     const isPhone = /^[\d\+\-\s\(\)]{7,20}$/.test(cleanContact);
 
-    if (isEmail) {
+    if (isEmail || isPhone) {
       setContactError(false);
-      onUpdateCredentials('email', cleanContact);
-    } else if (isPhone) {
-      setContactError(false);
-      onUpdateCredentials('phone', cleanContact);
+      setIsLoading(true);
+      
+      try {
+        if (mode === 'register') {
+          // Placeholder for registering the user
+          // await fetch('/api/v1/auth/register', { method: 'POST', body: ... });
+          
+          // The assign-role endpoint should theoretically be called after verification,
+          // but if we do it here or simulate it:
+          // await fetch('/api/v1/auth/assign-role', { method: 'POST', body: JSON.stringify({ role }) });
+          
+          if (isEmail) {
+            navigate('/verify-email?context=signup', { state: { role, contact: cleanContact } });
+          } else {
+            navigate('/verify-phone?context=signup', { state: { role, contact: cleanContact } });
+          }
+        } else {
+          // Placeholder for updating password
+          // await fetch('/api/v1/auth/update-password', { method: 'PUT', body: ... });
+          navigate('/login');
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       setContactError(true);
     }
@@ -77,8 +102,8 @@ export function CreateAccount({ onBack, onUpdateCredentials, initialContact = ''
                   type="text"
                   placeholder="j.doe@medical-portal.com"
                   value={contact}
-                  disabled
-                  className={`w-full pl-10 pr-3 py-2.5 border rounded-md bg-surface-container-highest focus:outline-none focus:ring-2 transition-colors cursor-not-allowed ${
+                  onChange={(e) => setContact(e.target.value)}
+                  className={`w-full pl-10 pr-3 py-2.5 border rounded-md bg-surface-container-highest focus:outline-none focus:ring-2 transition-colors ${
                     contactError 
                       ? 'border-error focus:border-error focus:ring-error/20' 
                       : 'border-outline-variant focus:border-primary focus:ring-primary-fixed text-on-surface-variant'
@@ -164,14 +189,15 @@ export function CreateAccount({ onBack, onUpdateCredentials, initialContact = ''
             <div className="pt-6 flex flex-col items-center space-y-4">
               <button
                 onClick={handleUpdate}
-                className={`w-full text-on-primary py-2.5 rounded-md text-[16px] font-medium flex items-center justify-center transition-colors ${strength < 5 ? 'bg-[#82a6ea]' : 'bg-primary hover:bg-primary/90'}`}
+                disabled={isLoading}
+                className={`w-full text-on-primary py-2.5 rounded-md text-[16px] font-medium flex items-center justify-center transition-colors ${strength < 5 ? 'bg-[#82a6ea]' : 'bg-primary hover:bg-primary/90'} disabled:opacity-70`}
               >
                 {mode === 'register' ? 'Complete Setup' : 'Save Credentials'}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </button>
               
               <button
-                onClick={onBack}
+                onClick={() => navigate('/login')}
                 className="flex items-center text-[14px] font-medium text-on-surface-variant hover:text-on-surface transition-colors"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />

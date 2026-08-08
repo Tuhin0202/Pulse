@@ -1,17 +1,50 @@
-import React, { useState, useRef } from 'react';
-import { Bell, Edit2, MapPin, Search, User, ClipboardList, Users, CheckCircle, Activity, Video, Calendar, FileText, PlusSquare, FileUp, ChevronDown, RotateCcw, Check, X, Printer, TrendingUp, Clock, RefreshCw, Camera, LogOut, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
-import { DoctorData } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bell, Edit2, MapPin, Search, User, ClipboardList, Users, CheckCircle, Activity, Video, Calendar, FileText, PlusSquare, FileUp, ChevronDown, RotateCcw, Check, X, Printer, TrendingUp, Clock, RefreshCw, Camera, LogOut, Settings, ChevronLeft, ChevronRight, ShieldCheck, FileCheck, UploadCloud, Eye } from 'lucide-react';
+import { DoctorData, PatientData } from '../types';
 import { PulseLogo } from './PulseLogo';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 
 interface DoctorDashboardProps {
-  onEditProfile?: () => void;
   doctorData?: DoctorData;
+  patientData?: PatientData;
+  onUpdatePatientData?: (data: Partial<PatientData>) => void;
 }
 
-export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardProps) {
-  const [activeTab, setActiveTab] = useState('Dashboard');
-  const [consultationPatient, setConsultationPatient] = useState<string | null>(null);
+export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }: DoctorDashboardProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
+
+  let activeTab = 'Dashboard';
+  if (location.pathname.includes('/doctor/patients')) activeTab = 'Patients';
+  else if (location.pathname.includes('/doctor/schedule')) activeTab = 'Schedule';
+  else if (location.pathname === '/doctor/profile') activeTab = 'Profile';
+
+  const [consultationPatient, setConsultationPatient] = useState<string | null>(id || null);
   const [consultationTab, setConsultationTab] = useState('Current Consultation');
+
+  useEffect(() => {
+    if (id) {
+      setConsultationPatient(id);
+    } else {
+      setConsultationPatient(null);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    // API Placeholder for Dashboard Stats
+    if (activeTab === 'Dashboard' && !id) {
+      fetch('/api/v1/doctor/dashboard-stats').catch(e => console.error(e));
+    }
+  }, [activeTab, id]);
+
+  useEffect(() => {
+    // API Placeholder for Schedule
+    if (activeTab === 'Schedule') {
+      const dateStr = new Date().toISOString().split('T')[0];
+      fetch(`/api/v1/doctor/schedule?date=${dateStr}`).catch(e => console.error(e));
+    }
+  }, [activeTab]);
   const [isScheduleDrawerOpen, setIsScheduleDrawerOpen] = useState(true);
   const [scheduleFilter, setScheduleFilter] = useState<'all' | 'rescheduled'>('all');
   const [rescheduleModalPatient, setRescheduleModalPatient] = useState<string | null>(null);
@@ -84,23 +117,59 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
   const [isEditingAbout, setIsEditingAbout] = useState(false);
   const [aboutText, setAboutText] = useState('Experienced Cardiologist with over 12 years of clinical experience. Specializes in preventive cardiology, heart failure management, and non-invasive cardiovascular imaging. Dedicated to providing patient-centered care with the latest evidence-based treatments.');
   const [patientVitals, setPatientVitals] = useState({
-    name: 'Sarah Johnson',
-    age: '28 Years',
-    gender: 'Female',
-    bloodType: 'O-Positive',
-    contact: '+1 (555) 012-3456',
-    bloodPressure: '120/80',
-    heartRate: '72',
-    height: '170',
-    weight: '64.5',
+    name: patientData?.fullName || 'John Doe',
+    age: '34 Years',
+    gender: 'Male',
+    bloodType: patientData?.bloodGroup || 'O+',
+    contact: patientData?.phone || '+1 (555) 123-4567',
+    bloodPressure: patientData?.bloodPressure ? patientData.bloodPressure.replace(' mmHg', '') : '120/80',
+    heartRate: patientData?.heartRate ? patientData.heartRate.replace(' bpm', '') : '72',
+    height: patientData?.height ? patientData.height.replace(' cm', '') : '175',
+    weight: patientData?.weight ? patientData.weight.replace(' kg', '') : '70',
     summary: 'Patient presented with mild insulin resistance in 2021. Managed via dietary control and Metformin. Regular screenings show stable glycemic levels. No known drug allergies.'
   });
+
+  useEffect(() => {
+    if (patientData) {
+      setPatientVitals(prev => ({
+        ...prev,
+        name: patientData.fullName || prev.name,
+        bloodType: patientData.bloodGroup || prev.bloodType,
+        contact: patientData.phone || prev.contact,
+        bloodPressure: patientData.bloodPressure ? patientData.bloodPressure.replace(' mmHg', '') : prev.bloodPressure,
+        heartRate: patientData.heartRate ? patientData.heartRate.replace(' bpm', '') : prev.heartRate,
+        height: patientData.height ? patientData.height.replace(' cm', '') : prev.height,
+        weight: patientData.weight ? patientData.weight.replace(' kg', '') : prev.weight,
+      }));
+    }
+  }, [patientData]);
   const profilePicInputRef = useRef<HTMLInputElement>(null);
+  const licenseFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [licenseData, setLicenseData] = useState({
+    number: doctorData?.licenseNumber || 'MCI-2012-987654',
+    fileName: doctorData?.licenseFileName || 'Medical_License_Dr_Jane_Smith.pdf',
+    fileUrl: doctorData?.licenseFileUrl || '',
+    status: doctorData?.licenseStatus || 'Verified'
+  });
+  const [uploadDocType, setUploadDocType] = useState<string>('');
+  const [uploadFileName, setUploadFileName] = useState<string>('');
+  const [uploadedReports, setUploadedReports] = useState<{name: string, date: string, doctor: string, type: string, fileUrl?: string}[]>([]);
+  const [uploadedPrescriptions, setUploadedPrescriptions] = useState<{name: string, date: string, doctor: string, fileUrl?: string}[]>([]);
+  const [viewingDocument, setViewingDocument] = useState<{
+    title: string;
+    type: string;
+    date: string;
+    doctor: string;
+    details?: string;
+    format?: string;
+    fileUrl?: string;
+  } | null>(null);
 
   const handleNavClick = (item: string) => {
-    setActiveTab(item);
-    setConsultationPatient(null);
+    if (item === 'Dashboard') navigate('/doctor/dashboard');
+    else if (item === 'Patients') navigate('/doctor/patients');
+    else if (item === 'Schedule') navigate('/doctor/schedule');
   };
 
   const handleBrowseClick = () => {
@@ -164,7 +233,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                   <button 
                     onClick={() => {
                       setIsProfileDropdownOpen(false);
-                      setActiveTab('Profile');
+                      navigate('/doctor/profile');
                     }}
                     className="w-full text-left px-4 py-2 text-[14px] text-on-surface hover:bg-surface-container-lowest flex items-center transition-colors"
                   >
@@ -186,9 +255,9 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                     onClick={() => {
                       setIsProfileDropdownOpen(false);
                       // In a real app, you would handle logout logic here, like clearing tokens or redirecting
-                      window.location.reload(); 
+                      navigate('/'); 
                     }}
-                    className="w-full text-left px-4 py-2 text-[14px] text-error hover:bg-surface-container-lowest flex items-center transition-colors"
+                    className="w-full text-left px-4 py-2 text-[14px] text-red-600 hover:bg-surface-container-lowest flex items-center transition-colors"
                   >
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
@@ -236,11 +305,15 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                       <div className="flex items-center px-3 py-1 bg-[#f1f5f9] rounded-full text-[13px] font-medium text-on-surface-variant">
                         {doctorData?.experience || '12'} Years Experience
                       </div>
+                      <div className="flex items-center px-3 py-1 bg-[#ecfdf5] border border-[#a7f3d0] rounded-full text-[13px] font-medium text-[#059669]">
+                        <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                        Verified License ({licenseData.number})
+                      </div>
                     </div>
                   </div>
                 </div>
                 <button 
-                  onClick={onEditProfile}
+                  onClick={() => navigate('/doctor/profile/edit')}
                   className="flex items-center justify-center px-5 py-2 bg-[#005bb5] text-white rounded-md text-[14px] font-bold hover:bg-primary/90 transition-colors shadow-sm self-start md:self-center"
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
@@ -281,6 +354,77 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                   {aboutText}
                 </p>
               )}
+            </div>
+
+            {/* Medical License & Verification Card */}
+            <div className="bg-white rounded-xl border border-outline-variant p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-outline-variant">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#eff6ff] text-[#005bb5] flex items-center justify-center">
+                    <FileCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-[18px] font-bold text-on-surface">Medical License & Registration</h2>
+                    <p className="text-[13px] text-on-surface-variant">Verified credentials and clinical practitioner registration</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 bg-[#ecfdf5] text-[#059669] border border-[#a7f3d0] rounded-full text-[12px] font-bold flex items-center">
+                    <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                    {licenseData.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Registration / License Number</div>
+                    <div className="text-[16px] font-bold font-mono text-on-surface bg-[#f8fafc] px-3 py-2 rounded-md border border-outline-variant inline-block">
+                      {licenseData.number}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Issuing Medical Board</div>
+                    <div className="text-[14px] text-on-surface font-medium">Medical Council of India (MCI) / State Medical Board</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Uploaded License Document</div>
+                  <input 
+                    type="file" 
+                    ref={licenseFileInputRef} 
+                    className="hidden" 
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        const file = e.target.files[0];
+                        const url = URL.createObjectURL(file);
+                        setLicenseData(prev => ({ ...prev, fileName: file.name, fileUrl: url, status: 'Verified' }));
+                      }
+                    }}
+                  />
+                  <div className="p-4 bg-[#f8fafc] border border-outline-variant rounded-xl flex items-center justify-between">
+                    <div className="flex items-center space-x-3 overflow-hidden">
+                      <div className="w-10 h-10 rounded-lg bg-[#005bb5] text-white flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[14px] font-bold text-on-surface truncate" title={licenseData.fileName}>{licenseData.fileName}</div>
+                        <div className="text-[12px] text-[#005bb5] font-medium">Verified Certificate Document</div>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => licenseFileInputRef.current?.click()}
+                      className="ml-3 px-3.5 py-1.5 bg-[#005bb5] text-white text-[13px] font-bold rounded-lg hover:bg-primary/90 transition-colors shrink-0 flex items-center shadow-sm"
+                    >
+                      <UploadCloud className="w-4 h-4 mr-1.5" /> Re-upload
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -431,20 +575,15 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
             <div className="bg-white rounded-xl border border-outline-variant overflow-hidden shadow-sm mb-8">
               <div className="px-6 py-5 border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
                 <h2 className="text-[18px] font-bold text-on-surface">Today's Appointments</h2>
-                <div className="flex items-center px-3 py-1 bg-[#eff6ff] rounded-full text-[12px] font-bold text-[#005bb5]">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#005bb5] mr-2" />
-                  Live Sync Active
-                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-outline-variant">
-                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider w-[120px]">Patient ID</th>
-                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider w-[120px]">Type</th>
-                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider w-[150px]">Scheduled</th>
-                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider w-[240px]">Actions</th>
+                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider w-1/4">Patient ID</th>
+                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider w-1/4">Name</th>
+                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider w-1/4">Scheduled</th>
+                      <th className="px-6 py-4 text-[12px] font-bold text-on-surface-variant uppercase tracking-wider w-1/4">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -455,7 +594,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                     ].map((pt, index) => (
                       <tr 
                         key={index} 
-                        onClick={() => setConsultationPatient(pt.id)}
+                        onClick={() => navigate(`/doctor/patient/${pt.id}`)}
                         className="hover:bg-surface-container-lowest transition-colors border-b border-outline-variant last:border-0 cursor-pointer"
                       >
                         <td className="px-6 py-4 text-[14px] text-on-surface-variant font-medium">{pt.id}</td>
@@ -465,9 +604,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                             <span className="text-[14px] font-medium text-on-surface">{pt.name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className="px-2.5 py-1 bg-[#f1f5f9] text-on-surface-variant text-[11px] font-bold rounded-full uppercase tracking-wide">{pt.type}</span>
-                        </td>
+
                         <td className="px-6 py-4">
                           <div className="text-[13px] text-on-surface-variant">Today</div>
                           <div className="text-[14px] font-bold text-[#005bb5]">{pt.time}</div>
@@ -475,14 +612,14 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <button 
-                              onClick={(e) => { e.stopPropagation(); setConsultationPatient(pt.id); }}
-                              className="px-4 py-2 bg-[#005bb5] text-white text-[13px] font-bold rounded-md hover:bg-primary/90 transition-colors"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/doctor/patient/${pt.id}`); }}
+                              className="w-[110px] h-[38px] flex items-center justify-center bg-[#005bb5] text-white text-[13px] font-bold rounded-md hover:bg-primary/90 transition-colors"
                             >
-                              View Profile
+                              View
                             </button>
                             <button 
                               onClick={(e) => { e.stopPropagation(); setRescheduleModalPatient(pt.name); }}
-                              className="px-4 py-2 bg-white border border-outline-variant text-on-surface text-[13px] font-bold rounded-md hover:bg-surface-container-lowest transition-colors"
+                              className="w-[110px] h-[38px] flex items-center justify-center bg-white border border-outline-variant text-on-surface text-[13px] font-bold rounded-md hover:bg-surface-container-lowest transition-colors"
                             >
                               Reschedule
                             </button>
@@ -501,49 +638,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="relative rounded-xl overflow-hidden h-[240px] shadow-sm flex items-end p-6 border border-outline-variant">
-                <img 
-                  src="https://images.unsplash.com/photo-1516549655169-df83a0774514?w=800&h=400&fit=crop" 
-                  alt="Medical equipment" 
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#005bb5]/90 to-transparent" />
-                <div className="relative z-10 text-white max-w-sm">
-                  <h3 className="text-[24px] font-bold mb-2">Patient Analytics</h3>
-                  <p className="text-[14px] text-white/90">
-                    Review monthly trends and diagnostic success rates in the new data center.
-                  </p>
-                </div>
-              </div>
 
-              <div className="bg-[#f1f5f9] rounded-xl border border-outline-variant p-8 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
-                <div className="w-32 h-32 absolute -right-8 -bottom-8 opacity-10">
-                  <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="50" r="40" />
-                    <circle cx="20" cy="20" r="15" />
-                    <circle cx="80" cy="80" r="15" />
-                    <circle cx="20" cy="80" r="15" />
-                    <circle cx="80" cy="20" r="15" />
-                  </svg>
-                </div>
-                <div className="w-12 h-12 mb-4 text-[#005bb5]">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                    <path d="M12 11v4"></path>
-                    <path d="M10 13h4"></path>
-                  </svg>
-                </div>
-                <h3 className="text-[20px] font-bold text-on-surface mb-3 relative z-10">Telehealth Integration</h3>
-                <p className="text-[14px] text-on-surface-variant mb-6 max-w-xs relative z-10">
-                  Connect with remote patients via secure HD video calls directly from your portal.
-                </p>
-                <button className="px-8 py-2 bg-transparent border-2 border-[#005bb5] text-[#005bb5] text-[14px] font-bold rounded-md hover:bg-[#005bb5] hover:text-white transition-colors relative z-10">
-                  Launch Portal
-                </button>
-              </div>
-            </div>
           </div>
         ) : activeTab === 'Patients' ? (
           <div className="space-y-6">
@@ -615,7 +710,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                 ].map((apt, i) => (
                   <div 
                     key={i} 
-                    onClick={() => setConsultationPatient(apt.id)}
+                    onClick={() => navigate(`/doctor/patient/${apt.id.replace('#', '')}`)}
                     className="bg-white rounded-xl border border-outline-variant p-5 shadow-sm cursor-pointer hover:border-[#005bb5] transition-colors"
                   >
                     <div className="flex justify-between items-start mb-4">
@@ -659,7 +754,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                 {upcomingAppointments.map((apt, i) => (
                   <div 
                     key={i} 
-                    onClick={() => setConsultationPatient(apt.id)}
+                    onClick={() => navigate(`/doctor/patient/${apt.id.replace('#', '')}`)}
                     className="bg-white rounded-xl border border-outline-variant p-5 shadow-sm relative overflow-hidden cursor-pointer hover:border-[#005bb5] transition-colors"
                   >
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#005bb5]" />
@@ -696,6 +791,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                         <button 
                           onClick={(e) => { 
                             e.stopPropagation();
+                            fetch(`/api/v1/appointments/${encodeURIComponent(apt.id)}/approve`, { method: 'PUT' }).catch(err => console.error(err));
                             setUpcomingAppointments(prev => prev.map((a, idx) => idx === i ? { ...a, status: 'Approved' } : a));
                           }}
                           className="flex-1 px-4 py-2 bg-[#005bb5] text-white text-[14px] font-bold rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center"
@@ -1128,7 +1224,20 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                    <div className="flex justify-between items-center mb-4">
                      <h3 className="text-[16px] font-bold text-on-surface">Patient Details & Vitals</h3>
                      <button
-                       onClick={() => setIsEditingVitals(!isEditingVitals)}
+                       onClick={() => {
+                         if (isEditingVitals) {
+                           fetch(`/api/v1/doctor/patient/${id}/vitals`, { method: 'PUT', body: JSON.stringify(patientVitals) }).catch(err => console.error(err));
+                           if (onUpdatePatientData) {
+                             onUpdatePatientData({
+                               bloodPressure: patientVitals.bloodPressure.includes('mmHg') ? patientVitals.bloodPressure : `${patientVitals.bloodPressure} mmHg`,
+                               heartRate: patientVitals.heartRate.includes('bpm') ? patientVitals.heartRate : `${patientVitals.heartRate} bpm`,
+                               height: patientVitals.height.includes('cm') ? patientVitals.height : `${patientVitals.height} cm`,
+                               weight: patientVitals.weight.includes('kg') ? patientVitals.weight : `${patientVitals.weight} kg`,
+                             });
+                           }
+                         }
+                         setIsEditingVitals(!isEditingVitals);
+                       }}
                        className="text-[14px] font-medium text-[#005bb5] hover:underline flex items-center"
                      >
                        {isEditingVitals ? <><Check className="w-4 h-4 mr-1" /> Save Details</> : <><Edit2 className="w-4 h-4 mr-1" /> Edit Details</>}
@@ -1211,7 +1320,11 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                      <div className="space-y-1.5">
                        <label className="text-[13px] font-medium text-on-surface">Document Type</label>
                        <div className="relative">
-                         <select className="w-full px-3 py-2.5 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-[#005bb5] appearance-none bg-transparent font-medium text-on-surface">
+                         <select 
+                           value={uploadDocType}
+                           onChange={(e) => setUploadDocType(e.target.value)}
+                           className="w-full px-3 py-2.5 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-[#005bb5] appearance-none bg-transparent font-medium text-on-surface"
+                         >
                            <option value="">Select document type</option>
                            <option value="report">Lab / Medical Report</option>
                            <option value="prescription">Prescription</option>
@@ -1236,24 +1349,64 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                    
                    <div 
                      onClick={handleBrowseClick}
-                     className="border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-lowest flex flex-col items-center justify-center py-12 px-6 hover:bg-[#f8fafc] transition-colors cursor-pointer"
+                     className={`border-2 border-dashed rounded-xl bg-surface-container-lowest flex flex-col items-center justify-center py-12 px-6 hover:bg-[#f8fafc] transition-colors cursor-pointer ${!uploadDocType ? 'border-red-300 opacity-60' : 'border-outline-variant'}`}
                    >
                       <input 
                         type="file" 
                         ref={fileInputRef} 
                         className="hidden" 
-                        accept=".pdf,.jpg,.jpeg,.png"
+                        accept={uploadDocType === 'report' ? '.pdf,.jpg,.jpeg,.png' : uploadDocType === 'prescription' ? '.pdf,.jpg,.jpeg,.png' : ''}
+                        onChange={() => {
+                          if (fileInputRef.current?.files?.length) {
+                            setUploadFileName(fileInputRef.current.files[0].name);
+                          }
+                        }}
                       />
                       <div className="w-12 h-12 bg-[#e2e8f0] rounded-lg flex items-center justify-center text-[#005bb5] mb-4">
                         <FileUp className="w-6 h-6" />
                       </div>
-                      <div className="text-[16px] font-medium text-on-surface mb-2">
-                        Drag & drop or <span className="text-[#005bb5] font-bold hover:underline">browse</span>
-                      </div>
+                      {uploadFileName ? (
+                        <div className="text-[16px] font-medium text-[#059669] mb-2">
+                          Selected: {uploadFileName}
+                        </div>
+                      ) : (
+                        <div className="text-[16px] font-medium text-on-surface mb-2">
+                          {!uploadDocType ? 'Please select a document type first' : <>Drag & drop or <span className="text-[#005bb5] font-bold hover:underline">browse</span></>}
+                        </div>
+                      )}
                       <div className="text-[12px] text-on-surface-variant font-medium">
                         Supported formats: PDF, JPG, JPEG, PNG
                       </div>
                    </div>
+                   <button 
+                     className={`w-full mt-4 px-4 py-2 text-white text-[14px] font-bold rounded-md transition-colors ${uploadDocType && uploadFileName ? 'bg-[#005bb5] hover:bg-primary/90' : 'bg-gray-300 cursor-not-allowed'}`}
+                     disabled={!uploadDocType || !uploadFileName}
+                     onClick={() => {
+                        if (!uploadDocType || !uploadFileName) return;
+                        const today = new Date();
+                        const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                        const ext = uploadFileName.split('.').pop()?.toUpperCase() || 'PDF';
+                        
+                        let fileUrl = '';
+                        if (fileInputRef.current?.files?.[0]) {
+                          fileUrl = URL.createObjectURL(fileInputRef.current.files[0]);
+                        }
+                        
+                        fetch(`/api/v1/doctor/patient/${id}/upload-document`, { method: 'POST' }).catch(err => console.error(err));
+                        
+                        if (uploadDocType === 'report') {
+                          setUploadedReports(prev => [...prev, { name: uploadFileName, date: dateStr, doctor: doctorData?.fullName || 'Dr. Jane Smith', type: ext, fileUrl }]);
+                        } else if (uploadDocType === 'prescription') {
+                          setUploadedPrescriptions(prev => [...prev, { name: uploadFileName, date: dateStr, doctor: doctorData?.fullName || 'Dr. Jane Smith', fileUrl }]);
+                        }
+                        
+                        setUploadDocType('');
+                        setUploadFileName('');
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                     }}
+                   >
+                     Submit Document
+                   </button>
                  </div>
                )}
 
@@ -1263,9 +1416,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                    
                    <div className="space-y-4">
                      {[
-                       { date: 'Jul 15, 2026', name: 'Complete Blood Count (CBC)', doctor: 'Dr. Miller', type: 'PDF' },
-                       { date: 'Jun 02, 2026', name: 'Lipid Panel', doctor: 'Dr. Jane Smith', type: 'PDF' },
-                       { date: 'Jan 10, 2026', name: 'HbA1c Test', doctor: 'Dr. Miller', type: 'JPG' }
+                       ...uploadedReports
                      ].map((doc, i) => (
                        <div key={i} className="flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant rounded-lg">
                          <div className="flex items-center space-x-4">
@@ -1278,7 +1429,18 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                            </div>
                          </div>
                          <div className="flex items-center space-x-3">
-                           <button className="px-3 py-1.5 bg-white border border-outline-variant text-[#005bb5] text-[13px] font-bold rounded-md hover:bg-surface-container-lowest transition-colors flex items-center">
+                           <button 
+                             onClick={() => setViewingDocument({
+                               title: doc.name,
+                               type: 'Lab / Medical Report',
+                               date: doc.date,
+                               doctor: doc.doctor,
+                               format: doc.type,
+                               fileUrl: doc.fileUrl,
+                               details: 'Official medical lab report uploaded for patient medical record.'
+                             })}
+                             className="px-3 py-1.5 bg-white border border-outline-variant text-[#005bb5] text-[13px] font-bold rounded-md hover:bg-surface-container-lowest transition-colors flex items-center"
+                           >
                              View {doc.type}
                            </button>
                          </div>
@@ -1294,9 +1456,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                    
                    <div className="space-y-4">
                      {[
-                       { date: 'May 20, 2026', title: 'Consultation Note', diag: 'Mild Hypertension', doctor: 'Dr. Jane Smith' },
-                       { date: 'Feb 14, 2026', title: 'Prescription: Metformin', diag: 'Insulin Resistance', doctor: 'Dr. Miller' },
-                       { date: 'Nov 05, 2025', title: 'Annual Physical Report', diag: 'Healthy', doctor: 'Dr. Jane Smith' }
+                       ...uploadedPrescriptions.map(p => ({ date: p.date, title: `Prescription: ${p.name}`, diag: 'Uploaded Document', doctor: p.doctor, fileUrl: p.fileUrl }))
                      ].map((history, i) => (
                        <div key={i} className="flex items-start justify-between p-4 border-b border-outline-variant last:border-0">
                          <div>
@@ -1307,7 +1467,17 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                            <div className="text-[13px] text-on-surface-variant mb-2">Diagnosis: {history.diag}</div>
                            <div className="text-[12px] font-medium text-on-surface-variant">Attending: {history.doctor}</div>
                          </div>
-                         <button className="px-3 py-1.5 bg-[#eff6ff] text-[#005bb5] text-[13px] font-bold rounded-md hover:bg-[#dbeafe] transition-colors">
+                         <button 
+                           onClick={() => setViewingDocument({
+                             title: history.title,
+                             type: 'Prescription / Medical Record',
+                             date: history.date,
+                             doctor: history.doctor,
+                             fileUrl: history.fileUrl,
+                             details: `Official medical prescription uploaded for patient clinical history.`
+                           })}
+                           className="px-3 py-1.5 bg-[#eff6ff] text-[#005bb5] text-[13px] font-bold rounded-md hover:bg-[#dbeafe] transition-colors"
+                         >
                            View Details
                          </button>
                        </div>
@@ -1355,6 +1525,7 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                            time: '11:30 AM',
                            status: 'approved'
                          };
+                         fetch(`/api/v1/appointments/mock-id/reschedule`, { method: 'PUT' }).catch(err => console.error(err));
                          setRescheduledAppts([...rescheduledAppts, newApt]);
                          setRescheduleModalPatient(null);
                       }}
@@ -1365,6 +1536,122 @@ export function DoctorDashboard({ onEditProfile, doctorData }: DoctorDashboardPr
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingDocument && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-5 border-b border-outline-variant flex justify-between items-center bg-[#f8fafc] shrink-0">
+              <div className="flex items-center space-x-2">
+                <FileText className="w-5 h-5 text-[#005bb5]" />
+                <h3 className="text-[16px] font-bold text-on-surface">Full Uploaded Document View</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 bg-[#e2e8f0] text-on-surface-variant text-[11px] font-bold rounded-full uppercase tracking-wider">Read Only</span>
+                <button onClick={() => setViewingDocument(null)} className="text-on-surface-variant hover:text-on-surface p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* Document Header & Details */}
+              <div className="grid grid-cols-2 gap-4 bg-[#f8fafc] p-4 rounded-xl border border-outline-variant">
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Document Name</label>
+                  <div className="text-[15px] font-bold text-on-surface mt-0.5">{viewingDocument.title}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Category</label>
+                  <div className="text-[15px] font-bold text-[#005bb5] mt-0.5">{viewingDocument.type}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Date Uploaded</label>
+                  <div className="text-[13px] font-medium text-on-surface mt-0.5">{viewingDocument.date}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Attending Doctor</label>
+                  <div className="text-[13px] font-medium text-on-surface mt-0.5">{viewingDocument.doctor}</div>
+                </div>
+              </div>
+
+              {/* Full Uploaded Document Preview Area */}
+              <div className="border border-outline-variant rounded-xl overflow-hidden bg-white shadow-sm">
+                <div className="bg-[#005bb5] text-white px-4 py-2.5 text-[12px] font-bold uppercase tracking-wider flex justify-between items-center">
+                  <span>PulseHealth Official Record Preview</span>
+                  <span>{viewingDocument.format || 'DOCUMENT'}</span>
+                </div>
+
+                {viewingDocument.fileUrl ? (
+                  <div className="p-4 bg-[#f1f5f9] flex justify-center items-center min-h-[300px]">
+                    {viewingDocument.format?.match(/PNG|JPG|JPEG|IMAGE/i) || viewingDocument.fileUrl.startsWith('blob:') ? (
+                      <img 
+                        src={viewingDocument.fileUrl} 
+                        alt={viewingDocument.title} 
+                        className="max-h-[450px] w-full object-contain rounded-lg border border-outline-variant bg-white p-2 shadow-md"
+                      />
+                    ) : (
+                      <iframe 
+                        src={viewingDocument.fileUrl} 
+                        title={viewingDocument.title} 
+                        className="w-full h-[450px] rounded-lg border border-outline-variant bg-white shadow-md"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  /* Stylized Medical Letterhead Document View */
+                  <div className="p-8 bg-white space-y-6 font-sans">
+                    <div className="flex justify-between items-start border-b border-outline-variant pb-6">
+                      <div>
+                        <div className="text-[20px] font-bold text-[#005bb5]">PulseHealth Medical Center</div>
+                        <div className="text-[12px] text-on-surface-variant">123 Health Ave, Suite 400 • Clinical Records Division</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[12px] font-bold text-on-surface">Doc ID: #{Math.floor(100000 + Math.random() * 900000)}</div>
+                        <div className="text-[11px] text-on-surface-variant">Date: {viewingDocument.date}</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center bg-[#f8fafc] p-3 rounded-lg border border-outline-variant text-[13px]">
+                        <span className="font-bold text-on-surface">Document Title:</span>
+                        <span className="font-semibold text-[#005bb5]">{viewingDocument.title}</span>
+                      </div>
+
+                      <div className="p-4 rounded-lg border border-outline-variant bg-[#fafafa]">
+                        <h4 className="text-[13px] font-bold text-on-surface mb-2 uppercase tracking-wider">Clinical Description & Content</h4>
+                        <p className="text-[14px] text-on-surface-variant leading-relaxed">
+                          {viewingDocument.details || 'This document contains verified patient medical records, lab results, or prescription orders uploaded by the medical practitioner.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-outline-variant pt-6 flex justify-between items-end">
+                      <div className="text-[11px] text-on-surface-variant">
+                        <span className="font-semibold text-on-surface">Status:</span> Verified & Digitally Signed<br />
+                        <span className="font-semibold text-on-surface">Security:</span> Encrypted Medical Record
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[14px] font-bold text-[#005bb5] italic underline font-serif">{viewingDocument.doctor}</div>
+                        <div className="text-[10px] uppercase font-bold text-on-surface-variant mt-0.5">Authorized Physician Stamp</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-outline-variant flex justify-between items-center bg-[#f8fafc] shrink-0">
+              <span className="text-[12px] text-on-surface-variant font-medium">Read-Only Mode • Cannot be edited</span>
+              <button 
+                onClick={() => setViewingDocument(null)}
+                className="px-6 py-2 bg-[#005bb5] text-white text-[14px] font-bold rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Close View
+              </button>
             </div>
           </div>
         </div>

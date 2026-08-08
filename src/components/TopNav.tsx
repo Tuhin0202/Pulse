@@ -1,23 +1,24 @@
 import { CircleHelp, Bell } from "lucide-react";
 import { PulseLogo } from "./PulseLogo";
+import { useNavigate } from "react-router-dom";
 
 interface TopNavProps {
-  onHomeClick?: () => void;
   showUserIcons?: boolean;
 }
 
-export function TopNav({ onHomeClick, showUserIcons }: TopNavProps) {
+export function TopNav({ showUserIcons }: TopNavProps) {
+  const navigate = useNavigate();
   return (
     <nav className="fixed top-0 w-full z-50 bg-surface-container-lowest border-b border-outline-variant">
       <div className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-[72px] max-w-[1280px] mx-auto">
-        <button onClick={onHomeClick} className="flex items-center hover:opacity-80 transition-opacity">
+        <button onClick={() => navigate('/')} className="flex items-center hover:opacity-80 transition-opacity">
           <PulseLogo />
         </button>
         
         {!showUserIcons ? (
           <>
             <div className="hidden md:flex items-center space-x-8">
-              <button onClick={onHomeClick} className="text-[16px] font-medium text-on-surface-variant hover:text-on-surface transition-colors">Home</button>
+              <button onClick={() => navigate('/')} className="text-[16px] font-medium text-on-surface-variant hover:text-on-surface transition-colors">Home</button>
               <a href="#" className="text-[16px] font-medium text-on-surface-variant hover:text-on-surface transition-colors">Services</a>
               <a href="#" className="text-[16px] font-medium text-on-surface-variant hover:text-on-surface transition-colors">Support</a>
             </div>

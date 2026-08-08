@@ -1,6 +1,7 @@
-import { User, Calendar, MapPin, Droplet, Save, ShieldCheck } from 'lucide-react';
+import { User, Calendar, MapPin, Droplet, Save, ShieldCheck, Activity, Heart, Ruler, Scale } from 'lucide-react';
 import { motion } from 'motion/react';
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PatientData } from '../types';
 
 interface PatientProfileSetupProps {
@@ -9,11 +10,16 @@ interface PatientProfileSetupProps {
 }
 
 export function PatientProfileSetup({ onComplete, initialData }: PatientProfileSetupProps) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<Partial<PatientData>>({
     fullName: initialData?.fullName || 'John Doe',
     dateOfBirth: initialData?.dateOfBirth || '',
     bloodGroup: initialData?.bloodGroup || '',
     address: initialData?.address || '123 Health St, Wellness District, San Francisco, CA 94103',
+    bloodPressure: initialData?.bloodPressure || '120/80 mmHg',
+    heartRate: initialData?.heartRate || '72 bpm',
+    height: initialData?.height || '175 cm',
+    weight: initialData?.weight || '70 kg',
   });
 
   const handleChange = (field: keyof PatientData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -94,6 +100,13 @@ export function PatientProfileSetup({ onComplete, initialData }: PatientProfileS
             </div>
           </div>
 
+          <div className="pt-2 border-t border-outline-variant">
+            <div className="p-3 bg-[#eff6ff] border border-[#bfdbfe] rounded-lg flex items-center text-[12px] text-[#1e40af] font-medium">
+              <ShieldCheck className="w-4 h-4 mr-2 shrink-0 text-[#005bb5]" />
+              Health vitals (Blood Pressure, Heart Rate, Height, Weight) are updated by attending doctors during clinical consultations.
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-[13px] font-medium text-on-surface">Residential Address</label>
             <div className="relative">
@@ -104,13 +117,23 @@ export function PatientProfileSetup({ onComplete, initialData }: PatientProfileS
             </div>
           </div>
 
-          <button 
-            onClick={() => onComplete(formData)}
-            className="w-full mt-2 bg-[#005bb5] hover:bg-primary/90 text-on-primary py-2.5 rounded-md text-[15px] font-medium flex items-center justify-center transition-colors"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            Save Profile
-          </button>
+          <div className="flex gap-3 mt-4">
+            <button 
+              type="button"
+              onClick={() => navigate('/patient/dashboard')}
+              className="w-1/2 border border-outline-variant text-on-surface hover:bg-surface-container-lowest py-2.5 rounded-md text-[14px] font-bold transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              type="button"
+              onClick={() => onComplete(formData)}
+              className="w-1/2 bg-[#005bb5] hover:bg-primary/90 text-white py-2.5 rounded-md text-[14px] font-bold flex items-center justify-center transition-colors shadow-sm"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Save Profile
+            </button>
+          </div>
         </div>
       </motion.div>
       

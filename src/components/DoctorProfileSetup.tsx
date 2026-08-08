@@ -1,6 +1,6 @@
-import { BriefcaseMedical, Building2, ChevronDown } from 'lucide-react';
+import { BriefcaseMedical, Building2, ChevronDown, FileCheck, UploadCloud, ShieldCheck, FileText, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { DoctorData } from '../types';
 
 interface DoctorProfileSetupProps {
@@ -9,6 +9,7 @@ interface DoctorProfileSetupProps {
 }
 
 export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSetupProps) {
+  const licenseFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<Partial<DoctorData>>({
     fullName: initialData?.fullName || 'Dr. Jane Smith',
     qualification: initialData?.qualification || 'MBBS, MD - Cardiology',
@@ -18,7 +19,24 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
     city: initialData?.city || 'Mumbai',
     contactInfo: initialData?.contactInfo || '+91 98765 43210',
     address: initialData?.address || '',
+    licenseNumber: initialData?.licenseNumber || 'MCI-2012-987654',
+    licenseFileName: initialData?.licenseFileName || 'Medical_License_Dr_Jane_Smith.pdf',
+    licenseFileUrl: initialData?.licenseFileUrl || '',
+    licenseStatus: initialData?.licenseStatus || 'Verified'
   });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const url = URL.createObjectURL(file);
+      setFormData(prev => ({
+        ...prev,
+        licenseFileName: file.name,
+        licenseFileUrl: url,
+        licenseStatus: 'Verified'
+      }));
+    }
+  };
 
   const handleChange = (field: keyof DoctorData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
@@ -116,6 +134,81 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-[13px] font-medium text-on-surface-variant">Address</label>
                 <input type="text" value={formData.address} onChange={handleChange('address')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+              </div>
+            </div>
+          </section>
+
+          <div className="h-[1px] bg-outline-variant/30" />
+
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center text-[16px] font-bold text-on-surface">
+                <FileCheck className="w-5 h-5 mr-2 text-primary" />
+                Medical License & Verification
+              </div>
+              <span className="flex items-center text-[12px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                {formData.licenseStatus || 'Pending Verification'}
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-on-surface-variant">Medical Registration / License Number</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. MCI-2012-987654" 
+                  value={formData.licenseNumber || ''} 
+                  onChange={handleChange('licenseNumber')} 
+                  className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary font-mono" 
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-on-surface-variant">Upload Medical License Document</label>
+                <input 
+                  type="file" 
+                  ref={licenseFileInputRef} 
+                  onChange={handleFileUpload} 
+                  accept=".pdf,.jpg,.jpeg,.png" 
+                  className="hidden" 
+                />
+
+                {formData.licenseFileName ? (
+                  <div className="flex items-center justify-between p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#005bb5] text-white flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-[14px] font-bold text-on-surface">{formData.licenseFileName}</div>
+                        <div className="text-[12px] text-[#005bb5] font-medium">Uploaded Medical Certificate</div>
+                      </div>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => licenseFileInputRef.current?.click()} 
+                      className="px-3 py-1.5 bg-white border border-[#005bb5] text-[#005bb5] text-[13px] font-bold rounded-lg hover:bg-[#eff6ff] transition-colors"
+                    >
+                      Replace File
+                    </button>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => licenseFileInputRef.current?.click()}
+                    className="border-2 border-dashed border-outline-variant rounded-xl p-6 bg-surface-container-lowest flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary hover:bg-[#f8fafc] transition-colors"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-[#eff6ff] text-[#005bb5] flex items-center justify-center mb-3">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <div className="text-[14px] font-bold text-on-surface mb-1">
+                      Click to upload medical license
+                    </div>
+                    <div className="text-[12px] text-on-surface-variant">
+                      Supports PDF, JPG, PNG (Max 10MB)
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </section>

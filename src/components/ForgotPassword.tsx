@@ -1,16 +1,40 @@
 import React, { useState } from 'react';
 import { Mail, Phone, ArrowLeft, RefreshCcw, Lock, UserPlus } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface ForgotPasswordProps {
-  onBack: () => void;
-  onVerify: (type: 'email' | 'phone', contact: string) => void;
   mode?: 'forgot-password' | 'register';
 }
 
-export function ForgotPassword({ onBack, onVerify, mode = 'forgot-password' }: ForgotPasswordProps) {
+export function ForgotPassword({ mode = 'forgot-password' }: ForgotPasswordProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const role = location.state?.role || 'patient';
+  
   const [method, setMethod] = useState<'email' | 'phone'>('email');
   const [contact, setContact] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      if (method === 'email') {
+        // Placeholder endpoint
+        // await fetch('/api/v1/auth/reset-password-email', { method: 'POST', body: ... });
+        navigate('/verify-email?context=reset', { state: { contact, role } });
+      } else {
+        // Placeholder endpoint
+        // await fetch('/api/v1/auth/reset-password-phone', { method: 'POST', body: ... });
+        navigate('/verify-phone?context=reset', { state: { contact, role } });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-72px)] p-4">
@@ -43,6 +67,7 @@ export function ForgotPassword({ onBack, onVerify, mode = 'forgot-password' }: F
         {/* Toggle */}
         <div className="flex w-full bg-surface-container-low rounded-lg p-1 mb-8 border border-outline-variant/60">
           <button
+            type="button"
             onClick={() => setMethod('email')}
             className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-[12px] font-bold uppercase tracking-wider transition-colors ${
               method === 'email'
@@ -53,6 +78,7 @@ export function ForgotPassword({ onBack, onVerify, mode = 'forgot-password' }: F
             Email
           </button>
           <button
+            type="button"
             onClick={() => setMethod('phone')}
             className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-[12px] font-bold uppercase tracking-wider transition-colors ${
               method === 'phone'
@@ -64,7 +90,7 @@ export function ForgotPassword({ onBack, onVerify, mode = 'forgot-password' }: F
           </button>
         </div>
 
-        <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onVerify(method, contact); }}>
+        <form className="space-y-6" onSubmit={handleVerify}>
           <div className="space-y-2">
             <label className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">
               {method === 'phone' ? 'Phone Number' : 'Email Address'}
@@ -85,15 +111,16 @@ export function ForgotPassword({ onBack, onVerify, mode = 'forgot-password' }: F
 
           <button
             type="submit"
-            className="w-full bg-[#005bb5] hover:bg-primary/90 text-on-primary py-3 rounded-md text-[16px] font-bold transition-colors mt-2 shadow-sm"
+            disabled={isLoading}
+            className="w-full bg-[#005bb5] hover:bg-primary/90 text-on-primary py-3 rounded-md text-[16px] font-bold transition-colors mt-2 shadow-sm disabled:opacity-70"
           >
-            {mode === 'register' ? 'Verify & Register' : 'Verify & Reset'}
+            {isLoading ? 'Verifying...' : (mode === 'register' ? 'Verify & Register' : 'Verify & Reset')}
           </button>
         </form>
 
         <div className="mt-8 text-center">
           <button
-            onClick={onBack}
+            onClick={() => navigate('/login')}
             className="inline-flex items-center justify-center text-[15px] font-bold text-[#005bb5] hover:underline"
           >
             <ArrowLeft className="w-4 h-4 mr-2" strokeWidth={2.5} />

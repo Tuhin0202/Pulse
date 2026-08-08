@@ -1,19 +1,30 @@
-import React, { useState } from 'react';
-import { Bell, Search, Star, Filter,  Edit2, Calendar, Droplet, ShieldCheck, MapPin, User, ClipboardList, Users, LogOut, Settings, FileText, Image as ImageIcon, Download, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, Search, Star, Filter, Edit2, Calendar, Droplet, ShieldCheck, MapPin, User, ClipboardList, Users, LogOut, Settings, FileText, Image as ImageIcon, Download, Eye, X, Activity, Heart, Ruler, Scale } from 'lucide-react';
 import { PatientData } from '../types';
 import { ViewDoctorProfile } from './ViewDoctorProfile';
 import { BookAppointment } from './BookAppointment';
 import { HealthAssistant } from './HealthAssistant';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 
 import { PulseLogo } from './PulseLogo';
 
 interface PatientDashboardProps {
-  onEditProfile?: () => void;
   patientData?: PatientData;
 }
 
-export function PatientDashboard({ onEditProfile, patientData }: PatientDashboardProps) {
-  const [activeTab, setActiveTab] = useState('Dashboard');
+export function PatientDashboard({ patientData }: PatientDashboardProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id, doctorId } = useParams();
+
+  let activeTab = 'Dashboard';
+  if (location.pathname.includes('/patient/appointments')) activeTab = 'Appointments';
+  else if (location.pathname.includes('/patient/prescriptions')) activeTab = 'Prescriptions';
+  else if (location.pathname.includes('/patient/settings')) activeTab = 'Profile';
+  else if (location.pathname.includes('/patient/doctor')) activeTab = 'Search';
+  else if (location.pathname.includes('/patient/book')) activeTab = 'Book';
+  else if (location.pathname.includes('/health-assistant')) activeTab = 'Health Assistant';
+
   const [subTab, setSubTab] = useState('Personal Details');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -26,6 +37,7 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const [bookingDoctor, setBookingDoctor] = useState<any>(null);
   const [bookings, setBookings] = useState<{[doctorId: number]: { date: string, slot: string }}>({});
+  const [viewingRecord, setViewingRecord] = useState<any | null>(null);
 
   const mockDoctors = [
     { id: 1, name: 'Dr. Sarah Jenkins', category: 'Cardiology', city: 'San Francisco', rating: 4.9, image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=faces', experience: '15 years' },
@@ -67,21 +79,36 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
     { id: 4, title: 'General Checkup Prescription', type: 'Prescriptions', date: 'Jun 10, 2026', doctor: 'Dr. Emily White', format: 'PDF', size: '450 KB' },
   ];
 
+  useEffect(() => {
+    if (activeTab === 'Book' && doctorId) {
+      const doc = mockDoctors.find(d => d.id === parseInt(doctorId));
+      if (doc) setBookingDoctor(doc);
+    } else if (activeTab === 'Search' && id) {
+      const doc = mockDoctors.find(d => d.id === parseInt(id));
+      if (doc) setSelectedDoctor(doc);
+    }
+  }, [id, doctorId, activeTab]);
+
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       <header className="fixed top-0 left-0 right-0 h-[72px] bg-white border-b border-outline-variant z-50 flex items-center justify-between px-6">
         <PulseLogo />
         <nav className="hidden md:flex space-x-8">
-          {navItems.map(item => (
+          {[
+            { label: 'Dashboard', path: '/patient/dashboard', key: 'Dashboard' },
+            { label: 'Appointments', path: '/patient/appointments', key: 'Appointments' },
+            { label: 'Prescriptions', path: '/patient/prescriptions', key: 'Prescriptions' },
+            { label: 'Health Assistant', path: '/health-assistant', key: 'Health Assistant' }
+          ].map(item => (
             <button
-              key={item}
-              onClick={() => setActiveTab(item)}
+              key={item.label}
+              onClick={() => navigate(item.path)}
               className={`text-[14px] font-medium h-[72px] relative flex items-center ${
-                activeTab === item ? 'text-[#005bb5]' : 'text-on-surface-variant hover:text-on-surface'
+                activeTab === item.key ? 'text-[#005bb5]' : 'text-on-surface-variant hover:text-on-surface'
               }`}
             >
-              {item}
-              {activeTab === item && (
+              {item.label}
+              {activeTab === item.key && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#005bb5]" />
               )}
             </button>
@@ -151,7 +178,7 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
                   <button 
                     onClick={() => {
                       setIsProfileDropdownOpen(false);
-                      setActiveTab('Profile');
+                      navigate('/patient/settings');
                     }}
                     className="w-full text-left px-4 py-2 text-[14px] text-on-surface hover:bg-surface-container-lowest flex items-center transition-colors"
                   >
@@ -173,7 +200,7 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
                     onClick={() => {
                       setIsProfileDropdownOpen(false);
                       // In a real app, handle logout
-                      window.location.reload(); 
+                      navigate('/'); 
                     }}
                     className="w-full text-left px-4 py-2 text-[14px] text-red-600 hover:bg-surface-container-lowest flex items-center transition-colors"
                   >
@@ -188,15 +215,16 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
       </header>
 
       <main className="pt-[104px] pb-12 px-6 max-w-5xl mx-auto space-y-6">
-        {bookingDoctor ? (
+        {activeTab === 'Book' && bookingDoctor ? (
           <BookAppointment 
             doctor={bookingDoctor}
-            onBack={() => setBookingDoctor(null)}
+            onBack={() => { setBookingDoctor(null); navigate('/patient/appointments'); }}
             onBook={(date, slot) => {
               setBookings(prev => ({
                 ...prev,
                 [bookingDoctor.id]: { date, slot }
               }));
+              navigate('/patient/dashboard');
             }}
             onCancel={() => {
               setBookings(prev => {
@@ -205,14 +233,15 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
                 return newB;
               });
               setBookingDoctor(null);
+              navigate('/patient/appointments');
             }}
           />
         ) : selectedDoctor ? (
           <ViewDoctorProfile 
             doctor={selectedDoctor} 
-            onBack={() => setSelectedDoctor(null)} 
+            onBack={() => { setSelectedDoctor(null); navigate('/patient/appointments'); }} 
           />
-        ) : activeTab === 'Appointments' ? (
+        ) : activeTab === 'Appointments' || activeTab === 'Search' ? (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <h1 className="text-[24px] font-bold text-on-surface">Book an Appointment</h1>
@@ -317,16 +346,16 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
                       ) : (
                         <>
                           <button 
-                            onClick={() => setSelectedDoctor(doctor)}
+                            onClick={() => navigate(`/patient/doctor/${doctor.id}`)}
                             className="px-3 py-2 border border-[#005bb5] text-[#005bb5] rounded-md text-[13px] font-bold hover:bg-[#eff6ff] transition-colors"
                           >
                             View Profile
                           </button>
                           <button 
-                            onClick={() => setBookingDoctor(doctor)}
+                            onClick={() => navigate(`/patient/book/${doctor.id}`)}
                             className="px-3 py-2 bg-[#005bb5] text-white rounded-md text-[13px] font-bold hover:bg-primary/90 transition-colors"
                           >
-                            Book Appt
+                            Book Now
                           </button>
                         </>
                       )}
@@ -382,7 +411,11 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
                       {record.format} • {record.size}
                     </span>
                     <div className="flex space-x-2">
-                      <button className="p-2 text-on-surface-variant hover:text-[#005bb5] hover:bg-[#eff6ff] rounded-md transition-colors" title="View Document">
+                      <button 
+                        onClick={() => setViewingRecord(record)}
+                        className="p-2 text-on-surface-variant hover:text-[#005bb5] hover:bg-[#eff6ff] rounded-md transition-colors" 
+                        title="View Document"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button className="p-2 text-on-surface-variant hover:text-[#059669] hover:bg-[#ecfdf5] rounded-md transition-colors" title="Download Document">
@@ -412,21 +445,35 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-outline-variant p-6">
-              <h2 className="text-[20px] font-bold text-on-surface mb-6 flex items-center">
-                <Calendar className="w-5 h-5 mr-2 text-[#005bb5]" />
-                Today's Appointments
-              </h2>
+            <div className="bg-white rounded-xl shadow-sm border border-outline-variant p-6 md:p-8">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-outline-variant">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#eff6ff] text-[#005bb5] flex items-center justify-center">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-[18px] font-bold text-on-surface">Today's Appointments</h2>
+                    <p className="text-[13px] text-on-surface-variant">Manage your scheduled consultations for today</p>
+                  </div>
+                </div>
+              </div>
 
               {todaysBookings.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="w-16 h-16 bg-[#f1f5f9] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Calendar className="w-8 h-8 text-[#94a3b8]" />
+                <div className="flex flex-col items-center justify-center text-center py-12 px-6 bg-[#f8fafc] border border-dashed border-outline-variant rounded-xl">
+                  <div className="w-16 h-16 bg-[#eff6ff] text-[#005bb5] rounded-full flex items-center justify-center mb-4 shadow-sm">
+                    <Calendar className="w-8 h-8" />
                   </div>
-                  <h3 className="text-[16px] font-bold text-on-surface mb-2">No Appointments Today</h3>
-                  <p className="text-[14px] text-on-surface-variant max-w-md mx-auto">
+                  <h3 className="text-[18px] font-bold text-on-surface mb-2">No Appointments Today</h3>
+                  <p className="text-[14px] text-on-surface-variant max-w-[360px] mx-auto mb-6 leading-relaxed">
                     You don't have any appointments scheduled for today. Check your Appointments tab to book a new one.
                   </p>
+                  <button 
+                    onClick={() => navigate('/patient/appointments')}
+                    className="px-6 py-2.5 bg-[#005bb5] text-white text-[14px] font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-sm flex items-center justify-center"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Book an Appointment
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -443,10 +490,7 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
                           <div className="text-[16px] font-bold text-[#005bb5]">{booking.slot}</div>
                         </div>
                         <button 
-                          onClick={() => {
-                             setSelectedDoctor(booking.doctor);
-                             setActiveTab('Appointments');
-                          }}
+                          onClick={() => navigate(`/patient/doctor/${booking.doctor.id}`)}
                           className="px-4 py-2 border border-[#005bb5] text-[#005bb5] rounded-lg text-[14px] font-bold hover:bg-[#eff6ff] transition-colors w-full md:w-auto mt-2 md:mt-0"
                         >
                           View Profile
@@ -492,7 +536,7 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
               </div>
             </div>
             <button 
-              onClick={onEditProfile}
+              onClick={() => navigate('/patient/profile/edit')}
               className="flex items-center justify-center px-5 py-2 bg-[#005bb5] text-white rounded-md text-[14px] font-bold hover:bg-primary/90 transition-colors shadow-sm self-start md:self-center"
             >
               <Edit2 className="w-4 h-4 mr-2" />
@@ -567,13 +611,202 @@ export function PatientDashboard({ onEditProfile, patientData }: PatientDashboar
               </div>
             </div>
 
-            <div className="bg-[#f1f5f9] rounded-xl border border-outline-variant h-48 shadow-sm">
+            {/* Health Vitals & Body Metrics Section */}
+            <div className="bg-white rounded-xl border border-outline-variant p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-outline-variant">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#eff6ff] text-[#005bb5] flex items-center justify-center">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-[18px] font-bold text-on-surface">Vitals & Health Metrics</h2>
+                    <p className="text-[13px] text-on-surface-variant">Key biometric measurements and health vitals</p>
+                  </div>
+                </div>
+                <div className="px-3 py-1 bg-[#eff6ff] border border-[#bfdbfe] rounded-full text-[12px] font-bold text-[#005bb5] flex items-center">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                  Updated by Doctor
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-[#fff1f2] border border-rose-100 rounded-xl p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[12px] font-bold uppercase tracking-wider text-rose-800">Blood Pressure</span>
+                    <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-sm">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[22px] font-extrabold text-rose-950">{patientData?.bloodPressure || '120/80 mmHg'}</div>
+                    <div className="text-[12px] font-medium text-rose-700 mt-1 flex items-center">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
+                      Optimal Range
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#fef2f2] border border-red-100 rounded-xl p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[12px] font-bold uppercase tracking-wider text-red-800">Heart Rate</span>
+                    <div className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm">
+                      <Heart className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[22px] font-extrabold text-red-950">{patientData?.heartRate || '72 bpm'}</div>
+                    <div className="text-[12px] font-medium text-red-700 mt-1 flex items-center">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
+                      Resting Rate
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#eff6ff] border border-blue-100 rounded-xl p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[12px] font-bold uppercase tracking-wider text-blue-800">Height</span>
+                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                      <Ruler className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[22px] font-extrabold text-blue-950">{patientData?.height || '175 cm'}</div>
+                    <div className="text-[12px] font-medium text-blue-700 mt-1">
+                      Body Stature
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#ecfdf5] border border-emerald-100 rounded-xl p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[12px] font-bold uppercase tracking-wider text-emerald-800">Weight</span>
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                      <Scale className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[22px] font-extrabold text-emerald-950">{patientData?.weight || '70 kg'}</div>
+                    <div className="text-[12px] font-medium text-emerald-700 mt-1">
+                      Body Mass Index: 22.9 (Healthy)
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
           </>
         ) : null}
       </main>
+
+      {viewingRecord && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-5 border-b border-outline-variant flex justify-between items-center bg-[#f8fafc] shrink-0">
+              <div className="flex items-center space-x-2">
+                <FileText className="w-5 h-5 text-[#005bb5]" />
+                <h3 className="text-[16px] font-bold text-on-surface">Full Document View</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 bg-[#e2e8f0] text-on-surface-variant text-[11px] font-bold rounded-full uppercase tracking-wider">Read Only</span>
+                <button onClick={() => setViewingRecord(null)} className="text-on-surface-variant hover:text-on-surface p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              <div className="grid grid-cols-2 gap-4 bg-[#f8fafc] p-4 rounded-xl border border-outline-variant">
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Document Title</label>
+                  <div className="text-[15px] font-bold text-on-surface mt-0.5">{viewingRecord.title}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Type</label>
+                  <div className="text-[15px] font-bold text-[#005bb5] mt-0.5">{viewingRecord.type}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Date</label>
+                  <div className="text-[13px] font-medium text-on-surface mt-0.5">{viewingRecord.date}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Attending Physician</label>
+                  <div className="text-[13px] font-medium text-on-surface mt-0.5">{viewingRecord.doctor}</div>
+                </div>
+              </div>
+
+              {/* Full Document View Sheet */}
+              <div className="border border-outline-variant rounded-xl overflow-hidden bg-white shadow-sm">
+                <div className="bg-[#005bb5] text-white px-4 py-2.5 text-[12px] font-bold uppercase tracking-wider flex justify-between items-center">
+                  <span>PulseHealth Medical Records Division</span>
+                  <span>{viewingRecord.format || 'PDF'}</span>
+                </div>
+
+                {viewingRecord.fileUrl ? (
+                  <div className="p-4 bg-[#f1f5f9] flex justify-center items-center min-h-[300px]">
+                    {viewingRecord.format?.match(/PNG|JPG|JPEG|IMAGE/i) || viewingRecord.fileUrl.startsWith('blob:') ? (
+                      <img 
+                        src={viewingRecord.fileUrl} 
+                        alt={viewingRecord.title} 
+                        className="max-h-[450px] w-full object-contain rounded-lg border border-outline-variant bg-white p-2 shadow-md"
+                      />
+                    ) : (
+                      <iframe 
+                        src={viewingRecord.fileUrl} 
+                        title={viewingRecord.title} 
+                        className="w-full h-[450px] rounded-lg border border-outline-variant bg-white shadow-md"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-8 bg-white space-y-6 font-sans">
+                    <div className="flex justify-between items-start border-b border-outline-variant pb-6">
+                      <div>
+                        <div className="text-[20px] font-bold text-[#005bb5]">PulseHealth Diagnostic & Clinical Records</div>
+                        <div className="text-[12px] text-on-surface-variant">Verified Patient Record Portal</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[12px] font-bold text-on-surface">Record ID: #{Math.floor(100000 + Math.random() * 900000)}</div>
+                        <div className="text-[11px] text-on-surface-variant">Issue Date: {viewingRecord.date}</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="bg-[#f8fafc] p-4 rounded-lg border border-outline-variant">
+                        <h4 className="text-[13px] font-bold text-on-surface mb-1 uppercase tracking-wider">Document Summary</h4>
+                        <p className="text-[14px] text-on-surface-variant leading-relaxed">
+                          Official electronic health document ({viewingRecord.title}) issued and verified by {viewingRecord.doctor}. This document is officially archived in the patient health record system.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-outline-variant pt-6 flex justify-between items-end">
+                      <div className="text-[11px] text-on-surface-variant">
+                        <span className="font-semibold text-on-surface">Status:</span> Active Medical Record<br />
+                        <span className="font-semibold text-on-surface">Format:</span> {viewingRecord.format || 'PDF'} ({viewingRecord.size || '1.2 MB'})
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[14px] font-bold text-[#005bb5] italic underline font-serif">{viewingRecord.doctor}</div>
+                        <div className="text-[10px] uppercase font-bold text-on-surface-variant mt-0.5">Verified Signature</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-outline-variant flex justify-between items-center bg-[#f8fafc] shrink-0">
+              <span className="text-[12px] text-on-surface-variant font-medium">Read-Only View</span>
+              <button 
+                onClick={() => setViewingRecord(null)}
+                className="px-6 py-2 bg-[#005bb5] text-white text-[14px] font-bold rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

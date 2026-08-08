@@ -1,16 +1,20 @@
 import React, { useState, useRef } from 'react';
 import { ShieldCheck, Lock, RefreshCcw, ArrowLeft, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
-interface MobileVerificationProps {
-  phone?: string;
-  onBack: () => void;
-  onVerified: () => void;
-}
-
-export function MobileVerification({ phone = '+1 (555) 000-0000', onBack, onVerified }: MobileVerificationProps) {
+export function MobileVerification() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
+  const context = searchParams.get('context');
+  const phone = location.state?.contact || '+1 (555) 000-0000';
+  const role = location.state?.role || 'patient';
+  
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleCodeChange = (index: number, value: string) => {
@@ -33,13 +37,45 @@ export function MobileVerification({ phone = '+1 (555) 000-0000', onBack, onVeri
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const fullCode = code.join('');
     if (fullCode.length === 6) {
       setError(false);
-      onVerified();
+      setIsLoading(true);
+      
+      try {
+        if (context === 'signup') {
+          // Placeholder for assigning the role
+          // await fetch('/api/v1/auth/assign-role', { method: 'POST', body: JSON.stringify({ role }) });
+          
+          if (role === 'doctor') {
+            navigate('/doctor/setup', { state: { role } });
+          } else {
+            navigate('/patient/setup', { state: { role } });
+          }
+        } else if (context === 'reset') {
+          navigate('/reset-password', { state: { role } });
+        } else {
+          // Fallback
+          navigate('/login');
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       setError(true);
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      // Placeholder endpoint
+      // await fetch('/api/v1/auth/resend-otp', { method: 'POST', body: JSON.stringify({ phone }) });
+      console.log('Resent OTP to', phone);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -101,16 +137,23 @@ export function MobileVerification({ phone = '+1 (555) 000-0000', onBack, onVeri
           )}
           <div className={`${error ? '' : 'mb-8'}`} />
           
-          <button onClick={handleSubmit} className="w-full bg-[#005bb5] hover:bg-primary/90 text-on-primary py-3 rounded-md text-[16px] font-bold flex items-center justify-center transition-colors mb-4 shadow-sm">
-            Submit Code
+          <button 
+            onClick={handleSubmit} 
+            disabled={isLoading}
+            className="w-full bg-[#005bb5] hover:bg-primary/90 text-on-primary py-3 rounded-md text-[16px] font-bold flex items-center justify-center transition-colors mb-4 shadow-sm disabled:opacity-70"
+          >
+            {isLoading ? 'Verifying...' : 'Submit Code'}
           </button>
           
-          <button className="w-full flex items-center justify-center text-[14px] font-bold text-[#005bb5] hover:underline mb-4">
+          <button 
+            onClick={handleResend}
+            className="w-full flex items-center justify-center text-[14px] font-bold text-[#005bb5] hover:underline mb-4"
+          >
             <RefreshCcw className="w-4 h-4 mr-2" /> Resend Code
           </button>
           
           <button 
-            onClick={onBack}
+            onClick={() => navigate('/login')}
             className="w-full flex items-center justify-center text-[14px] font-medium text-on-surface-variant hover:text-on-surface transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to Login

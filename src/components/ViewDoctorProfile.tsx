@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, MapPin, Phone, Clock, User, Award, Globe, Navigation, Calendar as CalendarIcon, CheckCircle2, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Star, MapPin, Phone, Clock, User, Award, Globe, Navigation, Calendar as CalendarIcon, CheckCircle2, ChevronRight, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 interface Doctor {
   id: number;
@@ -57,7 +57,13 @@ export function ViewDoctorProfile({ doctor, onBack }: ViewDoctorProfileProps) {
                 />
               </div>
               <div className="pt-2 md:pt-4">
-                <h1 className="text-[28px] font-bold text-on-surface">{doctor.name}</h1>
+                <h1 className="text-[28px] font-bold text-on-surface flex items-center gap-3">
+                  {doctor.name}
+                  <span className="px-2.5 py-0.5 bg-[#ecfdf5] text-[#059669] border border-[#a7f3d0] rounded-full text-[12px] font-bold flex items-center">
+                    <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                    Verified License
+                  </span>
+                </h1>
                 <p className="text-[16px] text-on-surface-variant">{doctor.category} Specialist</p>
               </div>
             </div>

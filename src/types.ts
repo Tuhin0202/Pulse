@@ -5,6 +5,10 @@ export interface PatientData {
   address: string;
   phone: string;
   email: string;
+  bloodPressure?: string;
+  heartRate?: string;
+  height?: string;
+  weight?: string;
 }
 
 export interface DoctorData {
@@ -16,4 +20,8 @@ export interface DoctorData {
   city: string;
   contactInfo: string;
   address: string;
+  licenseNumber?: string;
+  licenseFileUrl?: string;
+  licenseFileName?: string;
+  licenseStatus?: 'Verified' | 'Pending Verification' | 'Not Uploaded';
 }

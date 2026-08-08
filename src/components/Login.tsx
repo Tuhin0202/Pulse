@@ -1,17 +1,49 @@
 import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, Shield, ArrowRight, BriefcaseMedical, User } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-interface LoginProps {
-  initialRole?: 'doctor' | 'patient';
-  onCreateAccount?: (role: 'doctor' | 'patient') => void;
-  onForgotPassword?: (role: 'doctor' | 'patient') => void;
-  onSignIn?: (role: 'doctor' | 'patient') => void;
-}
-
-export function Login({ initialRole = 'doctor', onCreateAccount, onForgotPassword, onSignIn }: LoginProps) {
+export function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const initialRole = location.state?.role || 'doctor';
+  
   const [role, setRole] = useState<'doctor' | 'patient'>(initialRole);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    
+    try {
+      // Placeholder endpoint for login
+      // const response = await fetch('/api/v1/auth/login', { method: 'POST', body: ... });
+      // const data = await response.json();
+      
+      // Simulating a response where the returned role matches the selected role.
+      // To test mismatch, you could change this to return a different role.
+      const simulatedDbRole = role; 
+      
+      if (simulatedDbRole !== role) {
+        setError('Selected role does not match account role.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (role === 'doctor') {
+        navigate('/doctor/dashboard');
+      } else {
+        navigate('/patient/dashboard');
+      }
+    } catch (err) {
+      setError('An error occurred during login. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-72px)] p-4">
@@ -24,7 +56,7 @@ export function Login({ initialRole = 'doctor', onCreateAccount, onForgotPasswor
         <div className="flex p-4 bg-surface-container-lowest border-b border-outline-variant">
           <div className="flex w-full bg-surface-container-low rounded-lg p-1">
             <button
-              onClick={() => setRole('doctor')}
+              onClick={() => { setRole('doctor'); setError(null); }}
               className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-[14px] leading-[20px] font-medium transition-colors ${
                 role === 'doctor'
                   ? 'bg-primary text-on-primary shadow-sm'
@@ -35,7 +67,7 @@ export function Login({ initialRole = 'doctor', onCreateAccount, onForgotPasswor
               Doctor
             </button>
             <button
-              onClick={() => setRole('patient')}
+              onClick={() => { setRole('patient'); setError(null); }}
               className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-[14px] leading-[20px] font-medium transition-colors ${
                 role === 'patient'
                   ? 'bg-primary text-on-primary shadow-sm'
@@ -59,7 +91,12 @@ export function Login({ initialRole = 'doctor', onCreateAccount, onForgotPasswor
             </p>
           </div>
 
-          <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); onSignIn?.(role); }}>
+          <form className="space-y-5" onSubmit={handleSignIn}>
+            {error && (
+              <div className="p-3 text-sm text-error bg-error-container/20 border border-error-container rounded-md">
+                {error}
+              </div>
+            )}
             <div className="space-y-1">
               <label className="text-[14px] leading-[16px] font-medium text-on-surface">
                 Email Address / Phone Number
@@ -113,7 +150,7 @@ export function Login({ initialRole = 'doctor', onCreateAccount, onForgotPasswor
               </label>
               <button 
                 type="button" 
-                onClick={() => onForgotPassword?.(role)}
+                onClick={() => navigate('/forgot-password', { state: { role } })}
                 className="text-[14px] font-medium text-primary hover:underline"
               >
                 Forgot password?
@@ -122,17 +159,18 @@ export function Login({ initialRole = 'doctor', onCreateAccount, onForgotPasswor
 
             <button
               type="submit"
-              className="w-full mt-2 bg-primary hover:bg-primary/90 text-on-primary py-2.5 rounded-md text-[16px] font-medium flex items-center justify-center transition-colors"
+              disabled={isLoading}
+              className="w-full mt-2 bg-primary hover:bg-primary/90 text-on-primary py-2.5 rounded-md text-[16px] font-medium flex items-center justify-center transition-colors disabled:opacity-70"
             >
-              Sign In
-              <ArrowRight className="w-4 h-4 ml-2" />
+              {isLoading ? 'Signing In...' : 'Sign In'}
+              {!isLoading && <ArrowRight className="w-4 h-4 ml-2" />}
             </button>
           </form>
 
           <div className="mt-8 border-t border-outline-variant pt-6 text-center">
             <p className="text-[14px] text-on-surface-variant">
               New to Pulse Health?{' '}
-              <button onClick={() => onCreateAccount?.(role)} className="font-bold text-primary hover:underline">
+              <button onClick={() => navigate('/signup', { state: { role } })} className="font-bold text-primary hover:underline">
                 Create an account
               </button>
             </p>

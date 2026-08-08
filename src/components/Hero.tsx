@@ -1,11 +1,9 @@
 import { User, BriefcaseMedical, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router-dom";
 
-interface HeroProps {
-  onGetStarted: (role: 'patient' | 'doctor') => void;
-}
-
-export function Hero({ onGetStarted }: HeroProps) {
+export function Hero() {
+  const navigate = useNavigate();
   return (
     <section className="max-w-[1280px] mx-auto px-margin-mobile md:px-margin-desktop py-xl md:py-24 flex flex-col items-center text-center">
       <motion.div
@@ -28,7 +26,7 @@ export function Hero({ onGetStarted }: HeroProps) {
         className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-gutter mt-lg"
       >
         <button 
-          onClick={() => onGetStarted('patient')}
+          onClick={() => navigate('/login', { state: { role: 'patient' } })}
           className="group relative flex flex-col items-start p-lg bg-surface-container-lowest border border-outline-variant rounded-xl text-left hover:shadow-lg hover:border-primary transition-all duration-300"
         >
           <div className="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center mb-md group-hover:scale-110 transition-transform duration-300">
@@ -45,7 +43,7 @@ export function Hero({ onGetStarted }: HeroProps) {
         </button>
 
         <button 
-          onClick={() => onGetStarted('doctor')}
+          onClick={() => navigate('/login', { state: { role: 'doctor' } })}
           className="group relative flex flex-col items-start p-lg bg-surface-container-lowest border border-outline-variant rounded-xl text-left hover:shadow-lg hover:border-primary transition-all duration-300"
         >
           <div className="w-12 h-12 rounded-full bg-secondary-fixed flex items-center justify-center mb-md group-hover:scale-110 transition-transform duration-300">

@@ -1,15 +1,18 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
 
+from pydantic import BaseModel
+
+
 class VitalBase(BaseModel):
-    heart_rate: Optional[float] = None
-    blood_pressure_systolic: Optional[float] = None
-    blood_pressure_diastolic: Optional[float] = None
-    temperature: Optional[float] = None
+    heart_rate: float | None = None
+    blood_pressure_systolic: float | None = None
+    blood_pressure_diastolic: float | None = None
+    temperature: float | None = None
+
 
 class VitalCreate(VitalBase):
     pass
+
 
 class VitalResponse(VitalBase):
     id: str

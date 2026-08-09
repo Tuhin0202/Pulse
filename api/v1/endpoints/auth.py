@@ -1,22 +1,32 @@
 import os
+
 import requests as http_requests
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from firebase_admin import auth as firebase_auth
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from firebase_admin import auth as firebase_auth
 
 from api.db.session import get_db
 from api.models.user import User
+
+
+class ClientLoginRequest(BaseModel):
+    role: str | None = None
+
+
+from api.core.security import get_current_user, verify_firebase_token
 from api.schemas.auth import (
-    LoginRequest, LoginResponse, LoginUserInfo,
-    RegisterRequest, RegisterResponse,
-    AssignRoleRequest, UpdatePasswordRequest,
-    ResetPasswordEmailRequest, ResetPasswordPhoneRequest,
-    VerifyEmailRequest, VerifyOtpRequest,
-    ResendEmailRequest, ResendOtpRequest,
+    AssignRoleRequest,
+    RegisterRequest,
+    ResendEmailRequest,
+    ResendOtpRequest,
+    ResetPasswordEmailRequest,
+    ResetPasswordPhoneRequest,
+    UpdatePasswordRequest,
+    VerifyEmailRequest,
+    VerifyOtpRequest,
 )
-from api.core.security import verify_firebase_token, get_current_user
-from api.core import firebase  # ensure firebase is initialized
 
 router = APIRouter()
 
@@ -25,27 +35,23 @@ FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_WEB_API_KEY", "")
 
 # 1. POST /auth/login
 @router.post("/login")
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(
+    data: ClientLoginRequest,
+    db: AsyncSession = Depends(get_db),
+    token_payload: dict = Depends(verify_firebase_token),
+):
     """
-    Frontend sends {email, password, role}.
-    We sign in via Firebase REST API, get the ID token, verify it,
-    check the role matches, and return the token + user info.
+    Frontend signs in via Firebase, sends the token to us.
+    We verify token, sync user to database, and return user info.
     """
-    # Sign in with Firebase REST API
-    sign_in_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
-    resp = http_requests.post(sign_in_url, json={
-        "email": data.email,
-        "password": data.password,
-        "returnSecureToken": True
-    })
+    firebase_uid = token_payload.get("uid")
+    email = token_payload.get("email")
+    phone_number = token_payload.get("phone_number")
 
-    if resp.status_code != 200:
-        error_msg = resp.json().get("error", {}).get("message", "Login failed")
-        raise HTTPException(status_code=401, detail={"error": error_msg, "code": "AUTH_FAILED"})
-
-    firebase_data = resp.json()
-    id_token = firebase_data.get("idToken")
-    firebase_uid = firebase_data.get("localId")
+    if not firebase_uid:
+        raise HTTPException(
+            status_code=401, detail={"error": "Invalid token", "code": "AUTH_FAILED"}
+        )
 
     # Check/create user in our database
     result = await db.execute(select(User).filter(User.firebase_uid == firebase_uid))
@@ -55,35 +61,35 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         # Auto-create if first login
         user = User(
             firebase_uid=firebase_uid,
-            email=data.email,
-            role=data.role
+            email=email,
+            phone_number=phone_number,
+            role=data.role,
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
 
     # Verify role matches
-    if user.role and user.role != data.role:
+    if user.role and data.role and user.role != data.role:
         raise HTTPException(
             status_code=403,
-            detail={"error": "Selected role does not match account role.", "code": "ROLE_MISMATCH"}
+            detail={
+                "error": "Selected role does not match account role.",
+                "code": "ROLE_MISMATCH",
+            },
         )
 
     # Set role if not yet set
-    if not user.role:
+    if not user.role and data.role:
         user.role = data.role
         await db.commit()
 
     redirect_to = "/doctor/dashboard" if user.role == "doctor" else "/patient/dashboard"
 
     return {
-        "token": id_token,
-        "user": {
-            "id": user.firebase_uid,
-            "email": user.email or data.email,
-            "role": user.role
-        },
-        "redirectTo": redirect_to
+        "success": True,
+        "user": {"id": user.firebase_uid, "email": user.email, "role": user.role},
+        "redirectTo": redirect_to,
     }
 
 
@@ -103,8 +109,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         firebase_user = firebase_auth.create_user(**create_kwargs)
     except Exception as e:
         raise HTTPException(
-            status_code=400,
-            detail={"error": str(e), "code": "REGISTRATION_FAILED"}
+            status_code=400, detail={"error": str(e), "code": "REGISTRATION_FAILED"}
         )
 
     # Store in local DB with role
@@ -112,7 +117,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         firebase_uid=firebase_user.uid,
         email=data.email,
         phone_number=data.phone,
-        role=data.role
+        role=data.role,
     )
     db.add(new_user)
     await db.commit()
@@ -123,25 +128,28 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         try:
             # Sign in first to get idToken, then send verification email
             sign_in_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
-            sign_in_resp = http_requests.post(sign_in_url, json={
-                "email": data.email,
-                "password": data.password,
-                "returnSecureToken": True
-            })
+            sign_in_resp = http_requests.post(
+                sign_in_url,
+                json={
+                    "email": data.email,
+                    "password": data.password,
+                    "returnSecureToken": True,
+                },
+            )
             if sign_in_resp.status_code == 200:
                 id_token = sign_in_resp.json().get("idToken")
                 verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_WEB_API_KEY}"
-                http_requests.post(verify_url, json={
-                    "requestType": "VERIFY_EMAIL",
-                    "idToken": id_token
-                })
+                http_requests.post(
+                    verify_url,
+                    json={"requestType": "VERIFY_EMAIL", "idToken": id_token},
+                )
         except Exception:
             pass  # Non-blocking: verification email is best-effort
 
     return {
         "success": True,
         "userId": firebase_user.uid,
-        "verificationMethod": verification_method
+        "verificationMethod": verification_method,
     }
 
 
@@ -174,12 +182,20 @@ async def update_password(data: UpdatePasswordRequest):
         elif data.phone:
             firebase_user = firebase_auth.get_user_by_phone_number(data.phone)
         else:
-            raise HTTPException(status_code=400, detail={"error": "Email or phone required", "code": "MISSING_IDENTIFIER"})
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "Email or phone required",
+                    "code": "MISSING_IDENTIFIER",
+                },
+            )
 
         firebase_auth.update_user(firebase_user.uid, password=data.newPassword)
         return {"success": True}
     except Exception as e:
-        raise HTTPException(status_code=400, detail={"error": str(e), "code": "PASSWORD_UPDATE_FAILED"})
+        raise HTTPException(
+            status_code=400, detail={"error": str(e), "code": "PASSWORD_UPDATE_FAILED"}
+        )
 
 
 # 5. POST /auth/reset-password-email
@@ -188,17 +204,24 @@ async def reset_password_email(data: ResetPasswordEmailRequest):
     """Sends a password reset email via Firebase."""
     try:
         reset_url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_WEB_API_KEY}"
-        resp = http_requests.post(reset_url, json={
-            "requestType": "PASSWORD_RESET",
-            "email": data.email
-        })
+        resp = http_requests.post(
+            reset_url, json={"requestType": "PASSWORD_RESET", "email": data.email}
+        )
         if resp.status_code != 200:
-            raise HTTPException(status_code=400, detail={"error": "Failed to send reset email", "code": "RESET_EMAIL_FAILED"})
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "Failed to send reset email",
+                    "code": "RESET_EMAIL_FAILED",
+                },
+            )
         return {"success": True, "message": "Verification email sent"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e), "code": "INTERNAL_ERROR"})
+        raise HTTPException(
+            status_code=500, detail={"error": str(e), "code": "INTERNAL_ERROR"}
+        )
 
 
 # 6. POST /auth/reset-password-phone
@@ -209,12 +232,17 @@ async def reset_password_phone(data: ResetPasswordPhoneRequest):
         send_url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key={FIREBASE_WEB_API_KEY}"
         resp = http_requests.post(send_url, json={"phoneNumber": data.phone})
         if resp.status_code != 200:
-            raise HTTPException(status_code=400, detail={"error": "Failed to send OTP", "code": "OTP_SEND_FAILED"})
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "Failed to send OTP", "code": "OTP_SEND_FAILED"},
+            )
         return {"success": True, "message": "OTP sent"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e), "code": "INTERNAL_ERROR"})
+        raise HTTPException(
+            status_code=500, detail={"error": str(e), "code": "INTERNAL_ERROR"}
+        )
 
 
 # 7. POST /auth/resend-email
@@ -227,7 +255,9 @@ async def resend_email(data: ResendEmailRequest):
         link = firebase_auth.generate_email_verification_link(data.email)
         return {"success": True}
     except Exception as e:
-        raise HTTPException(status_code=400, detail={"error": str(e), "code": "RESEND_EMAIL_FAILED"})
+        raise HTTPException(
+            status_code=400, detail={"error": str(e), "code": "RESEND_EMAIL_FAILED"}
+        )
 
 
 # 8. POST /auth/resend-otp
@@ -238,12 +268,17 @@ async def resend_otp(data: ResendOtpRequest):
         send_url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key={FIREBASE_WEB_API_KEY}"
         resp = http_requests.post(send_url, json={"phoneNumber": data.phone})
         if resp.status_code != 200:
-            raise HTTPException(status_code=400, detail={"error": "Failed to resend OTP", "code": "OTP_RESEND_FAILED"})
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "Failed to resend OTP", "code": "OTP_RESEND_FAILED"},
+            )
         return {"success": True}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e), "code": "INTERNAL_ERROR"})
+        raise HTTPException(
+            status_code=500, detail={"error": str(e), "code": "INTERNAL_ERROR"}
+        )
 
 
 # 9. POST /auth/verify-email
@@ -256,7 +291,9 @@ async def verify_email(data: VerifyEmailRequest):
         firebase_user = firebase_auth.get_user_by_email(data.email)
         return {"success": True, "verified": firebase_user.email_verified}
     except Exception as e:
-        raise HTTPException(status_code=400, detail={"error": str(e), "code": "VERIFY_EMAIL_FAILED"})
+        raise HTTPException(
+            status_code=400, detail={"error": str(e), "code": "VERIFY_EMAIL_FAILED"}
+        )
 
 
 # 10. POST /auth/verify-otp
@@ -270,7 +307,9 @@ async def verify_otp(data: VerifyOtpRequest):
         # The frontend should pass the sessionInfo; for now we accept and validate
         return {"success": True, "verified": True}
     except Exception as e:
-        raise HTTPException(status_code=400, detail={"error": str(e), "code": "VERIFY_OTP_FAILED"})
+        raise HTTPException(
+            status_code=400, detail={"error": str(e), "code": "VERIFY_OTP_FAILED"}
+        )
 
 
 # 11. POST /auth/logout
@@ -281,6 +320,6 @@ async def logout(user: User = Depends(get_current_user)):
         # Revoke all refresh tokens for the user
         firebase_auth.revoke_refresh_tokens(user.firebase_uid)
         return {"success": True}
-    except Exception as e:
+    except Exception:
         # Even if revocation fails, acknowledge the logout
         return {"success": True}

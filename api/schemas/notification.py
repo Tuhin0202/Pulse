@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+
 
 class NotificationResponse(BaseModel):
     id: str
@@ -7,7 +7,7 @@ class NotificationResponse(BaseModel):
     title: str
     message: str
     read: bool
-    createdAt: Optional[str] = None
+    createdAt: str | None = None
 
     class Config:
         from_attributes = True

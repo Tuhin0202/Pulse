@@ -1,14 +1,13 @@
-import uuid
 from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import or_
 
 from api.db.session import get_db
+from api.models.appointment import Appointment
 from api.models.doctor import Doctor
 from api.models.schedule import DoctorSchedule
-from api.models.appointment import Appointment
 
 router = APIRouter()
 
@@ -19,7 +18,7 @@ async def search_doctors(
     search: str = Query(None),
     city: str = Query(None),
     category: str = Query(None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Public endpoint: search doctors by name, city, or specialty."""
     query = select(Doctor)
@@ -56,7 +55,10 @@ async def get_doctor(doctor_id: str, db: AsyncSession = Depends(get_db)):
     doc = result.scalars().first()
     if not doc:
         from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail={"error": "Doctor not found", "code": "NOT_FOUND"})
+
+        raise HTTPException(
+            status_code=404, detail={"error": "Doctor not found", "code": "NOT_FOUND"}
+        )
 
     # Get schedule
     schedule_result = await db.execute(
@@ -92,16 +94,13 @@ async def get_doctor(doctor_id: str, db: AsyncSession = Depends(get_db)):
 # 31. GET /doctors/{doctorId}/available-slots?date=YYYY-MM-DD
 @router.get("/{doctor_id}/available-slots")
 async def get_available_slots(
-    doctor_id: str,
-    date: str = Query(None),
-    db: AsyncSession = Depends(get_db)
+    doctor_id: str, date: str = Query(None), db: AsyncSession = Depends(get_db)
 ):
     """Returns available dates and time slots for a doctor."""
     # Get the doctor's schedule
     schedule_result = await db.execute(
         select(DoctorSchedule).filter(
-            DoctorSchedule.doctor_id == doctor_id,
-            DoctorSchedule.is_working == True
+            DoctorSchedule.doctor_id == doctor_id, DoctorSchedule.is_working == True
         )
     )
     working_schedules = schedule_result.scalars().all()
@@ -111,8 +110,13 @@ async def get_available_slots(
     available_dates = []
     base_date = datetime.now()
     day_map = {
-        0: "Monday", 1: "Tuesday", 2: "Wednesday",
-        3: "Thursday", 4: "Friday", 5: "Saturday", 6: "Sunday"
+        0: "Monday",
+        1: "Tuesday",
+        2: "Wednesday",
+        3: "Thursday",
+        4: "Friday",
+        5: "Saturday",
+        6: "Sunday",
     }
 
     for i in range(1, 31):
@@ -122,24 +126,38 @@ async def get_available_slots(
             available_dates.append(d.strftime("%Y-%m-%dT00:00:00Z"))
 
     # Generate time slots (hardcoded for now, could be derived from schedule)
-    time_slots = [
-        "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-        "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM",
-        "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+    all_time_slots = [
+        "09:00 AM",
+        "09:30 AM",
+        "10:00 AM",
+        "10:30 AM",
+        "11:00 AM",
+        "11:30 AM",
+        "02:00 PM",
+        "02:30 PM",
+        "03:00 PM",
+        "03:30 PM",
+        "04:00 PM",
+        "04:30 PM",
     ]
 
-    # If a specific date is provided, filter out already-booked slots
+    booked_slots = set()
+    # If a specific date is provided, find already-booked slots
     if date:
         booked_result = await db.execute(
             select(Appointment).filter(
                 Appointment.doctor_id == doctor_id,
                 Appointment.date == date.split("T")[0],
-                Appointment.status != "Cancelled"
+                Appointment.status != "Cancelled",
             )
         )
         booked = booked_result.scalars().all()
         booked_slots = {a.time_slot for a in booked}
-        time_slots = [s for s in time_slots if s not in booked_slots]
+        
+    time_slots = [
+        {"time": s, "available": s not in booked_slots}
+        for s in all_time_slots
+    ]
 
     return {
         "availableDates": available_dates,

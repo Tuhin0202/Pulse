@@ -1,37 +1,39 @@
 from pydantic import BaseModel
-from typing import Optional
+
 
 class PatientProfileCreate(BaseModel):
     fullName: str
-    dateOfBirth: Optional[str] = None
-    bloodGroup: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    gender: Optional[str] = None
+    dateOfBirth: str | None = None
+    bloodGroup: str | None = None
+    address: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    gender: str | None = None
+
 
 class PatientProfileUpdate(BaseModel):
-    fullName: Optional[str] = None
-    dateOfBirth: Optional[str] = None
-    bloodGroup: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    gender: Optional[str] = None
+    fullName: str | None = None
+    dateOfBirth: str | None = None
+    bloodGroup: str | None = None
+    address: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    gender: str | None = None
+
 
 class PatientProfileResponse(BaseModel):
     id: str
     fullName: str
-    dateOfBirth: Optional[str] = None
-    bloodGroup: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    gender: Optional[str] = None
-    bloodPressure: Optional[str] = None
-    heartRate: Optional[str] = None
-    height: Optional[str] = None
-    weight: Optional[str] = None
+    dateOfBirth: str | None = None
+    bloodGroup: str | None = None
+    address: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    gender: str | None = None
+    bloodPressure: str | None = None
+    heartRate: str | None = None
+    height: str | None = None
+    weight: str | None = None
 
     class Config:
         from_attributes = True

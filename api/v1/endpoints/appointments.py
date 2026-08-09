@@ -1,17 +1,17 @@
 import uuid
-from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from api.core.security import get_current_user
 from api.db.session import get_db
-from api.models.user import User
 from api.models.appointment import Appointment
-from api.models.patient import Patient
 from api.models.doctor import Doctor
 from api.models.notification import Notification
+from api.models.patient import Patient
+from api.models.user import User
 from api.schemas.appointment import AppointmentCreate, RescheduleRequest
-from api.core.security import get_current_user
 
 router = APIRouter()
 
@@ -21,16 +21,43 @@ router = APIRouter()
 async def create_appointment(
     data: AppointmentCreate,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     # Find patient profile
-    pat_result = await db.execute(select(Patient).filter(Patient.firebase_uid == user.firebase_uid))
+    pat_result = await db.execute(
+        select(Patient).filter(Patient.firebase_uid == user.firebase_uid)
+    )
     pat = pat_result.scalars().first()
     if not pat:
-        raise HTTPException(status_code=404, detail={"error": "Patient profile not found. Please complete profile setup.", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Patient profile not found. Please complete profile setup.",
+                "code": "NOT_FOUND",
+            },
+        )
 
     # Parse the date (could be ISO format or plain date string)
     date_str = data.date.split("T")[0] if "T" in data.date else data.date
+
+    # --- Double Booking Prevention ---
+    existing_appt_result = await db.execute(
+        select(Appointment).filter(
+            Appointment.doctor_id == data.doctorId,
+            Appointment.date == date_str,
+            Appointment.time_slot == data.timeSlot,
+            Appointment.status != "Cancelled"
+        )
+    )
+    if existing_appt_result.scalars().first():
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "This time slot is already booked for this doctor.",
+                "code": "DOUBLE_BOOKING",
+            },
+        )
+    # ---------------------------------
 
     appt = Appointment(
         id=str(uuid.uuid4()),
@@ -59,7 +86,9 @@ async def create_appointment(
 
     # Also notify the doctor
     if doc:
-        doc_user_result = await db.execute(select(User).filter(User.firebase_uid == doc.firebase_uid))
+        doc_user_result = await db.execute(
+            select(User).filter(User.firebase_uid == doc.firebase_uid)
+        )
         doc_notif = Notification(
             id=str(uuid.uuid4()),
             user_id=doc.firebase_uid,
@@ -82,7 +111,7 @@ async def create_appointment(
             "timeSlot": appt.time_slot,
             "type": appt.type,
             "status": appt.status,
-        }
+        },
     }
 
 
@@ -91,12 +120,17 @@ async def create_appointment(
 async def cancel_appointment(
     appointment_id: str,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Appointment).filter(Appointment.id == appointment_id))
+    result = await db.execute(
+        select(Appointment).filter(Appointment.id == appointment_id)
+    )
     appt = result.scalars().first()
     if not appt:
-        raise HTTPException(status_code=404, detail={"error": "Appointment not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Appointment not found", "code": "NOT_FOUND"},
+        )
 
     appt.status = "Cancelled"
     await db.commit()
@@ -108,15 +142,26 @@ async def cancel_appointment(
 async def approve_appointment(
     appointment_id: str,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     if user.role != "doctor":
-        raise HTTPException(status_code=403, detail={"error": "Only doctors can approve appointments", "code": "FORBIDDEN"})
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Only doctors can approve appointments",
+                "code": "FORBIDDEN",
+            },
+        )
 
-    result = await db.execute(select(Appointment).filter(Appointment.id == appointment_id))
+    result = await db.execute(
+        select(Appointment).filter(Appointment.id == appointment_id)
+    )
     appt = result.scalars().first()
     if not appt:
-        raise HTTPException(status_code=404, detail={"error": "Appointment not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Appointment not found", "code": "NOT_FOUND"},
+        )
 
     appt.status = "Approved"
     await db.commit()
@@ -129,12 +174,17 @@ async def reschedule_appointment(
     appointment_id: str,
     data: RescheduleRequest,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Appointment).filter(Appointment.id == appointment_id))
+    result = await db.execute(
+        select(Appointment).filter(Appointment.id == appointment_id)
+    )
     appt = result.scalars().first()
     if not appt:
-        raise HTTPException(status_code=404, detail={"error": "Appointment not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Appointment not found", "code": "NOT_FOUND"},
+        )
 
     # Store original date/time
     appt.original_date = appt.date
@@ -158,5 +208,5 @@ async def reschedule_appointment(
             "timeSlot": appt.time_slot,
             "type": appt.type,
             "status": appt.status,
-        }
+        },
     }

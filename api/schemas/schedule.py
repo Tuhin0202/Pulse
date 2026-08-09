@@ -1,11 +1,12 @@
 from pydantic import BaseModel
-from typing import List, Optional
+
 
 class ScheduleTiming(BaseModel):
     day: str
-    start: Optional[str] = None
-    end: Optional[str] = None
+    start: str | None = None
+    end: str | None = None
     isWorking: bool = True
 
+
 class ScheduleUpdateRequest(BaseModel):
-    timings: List[ScheduleTiming]
+    timings: list[ScheduleTiming]

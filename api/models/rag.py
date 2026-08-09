@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, func, Text
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text, func
+
 from api.db.base import Base
+
 
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
@@ -10,6 +12,7 @@ class DocumentChunk(Base):
     # Mocking pgvector for SQLite. We store embeddings as JSON strings or omit.
     # In Supabase/pgvector, this would be: embedding = Column(Vector(768))
     embedding_mock = Column(Text, nullable=True)
+
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"

@@ -1,14 +1,19 @@
-import uuid
 import os
-import shutil
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+import uuid
 
-from api.models.user import User
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+
 from api.core.security import get_current_user
+from api.models.user import User
 
 router = APIRouter()
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "uploads")
+UPLOAD_DIR = os.path.join(
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ),
+    "uploads",
+)
 
 ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
@@ -30,7 +35,10 @@ async def upload_file(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail={"error": f"File type '{ext}' not allowed. Accepted: PDF, JPG, JPEG, PNG.", "code": "INVALID_FILE_TYPE"}
+            detail={
+                "error": f"File type '{ext}' not allowed. Accepted: PDF, JPG, JPEG, PNG.",
+                "code": "INVALID_FILE_TYPE",
+            },
         )
 
     # Read and validate size
@@ -38,7 +46,10 @@ async def upload_file(
     if len(contents) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
-            detail={"error": "File too large. Maximum size is 10MB.", "code": "FILE_TOO_LARGE"}
+            detail={
+                "error": "File too large. Maximum size is 10MB.",
+                "code": "FILE_TOO_LARGE",
+            },
         )
 
     _ensure_upload_dir()
@@ -49,7 +60,11 @@ async def upload_file(
         buffer.write(contents)
 
     file_size = len(contents)
-    size_str = f"{file_size / (1024 * 1024):.1f} MB" if file_size > 1024 * 1024 else f"{file_size / 1024:.0f} KB"
+    size_str = (
+        f"{file_size / (1024 * 1024):.1f} MB"
+        if file_size > 1024 * 1024
+        else f"{file_size / 1024:.0f} KB"
+    )
 
     return {
         "success": True,

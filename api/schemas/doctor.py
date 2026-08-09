@@ -1,52 +1,55 @@
 from pydantic import BaseModel
-from typing import Optional, List
+
 
 class DoctorProfileCreate(BaseModel):
     fullName: str
-    qualification: Optional[str] = None
-    specialization: Optional[str] = None
-    experience: Optional[str] = None
-    clinicName: Optional[str] = None
-    city: Optional[str] = None
-    contactInfo: Optional[str] = None
-    address: Optional[str] = None
-    licenseNumber: Optional[str] = None
-    licenseFileName: Optional[str] = None
-    licenseStatus: Optional[str] = "Not Uploaded"
+    qualification: str | None = None
+    specialization: str | None = None
+    experience: str | None = None
+    clinicName: str | None = None
+    city: str | None = None
+    contactInfo: str | None = None
+    address: str | None = None
+    licenseNumber: str | None = None
+    licenseFileName: str | None = None
+    licenseStatus: str | None = "Not Uploaded"
+
 
 class DoctorProfileUpdate(BaseModel):
-    fullName: Optional[str] = None
-    qualification: Optional[str] = None
-    specialization: Optional[str] = None
-    experience: Optional[str] = None
-    clinicName: Optional[str] = None
-    city: Optional[str] = None
-    contactInfo: Optional[str] = None
-    address: Optional[str] = None
-    aboutText: Optional[str] = None
-    licenseNumber: Optional[str] = None
-    licenseFileName: Optional[str] = None
-    licenseStatus: Optional[str] = None
+    fullName: str | None = None
+    qualification: str | None = None
+    specialization: str | None = None
+    experience: str | None = None
+    clinicName: str | None = None
+    city: str | None = None
+    contactInfo: str | None = None
+    address: str | None = None
+    aboutText: str | None = None
+    licenseNumber: str | None = None
+    licenseFileName: str | None = None
+    licenseStatus: str | None = None
+
 
 class DoctorProfileResponse(BaseModel):
     id: str
     fullName: str
-    qualification: Optional[str] = None
-    specialization: Optional[str] = None
-    experience: Optional[str] = None
-    clinicName: Optional[str] = None
-    city: Optional[str] = None
-    contactInfo: Optional[str] = None
-    address: Optional[str] = None
-    aboutText: Optional[str] = None
-    profilePicUrl: Optional[str] = None
-    licenseNumber: Optional[str] = None
-    licenseFileUrl: Optional[str] = None
-    licenseFileName: Optional[str] = None
-    licenseStatus: Optional[str] = "Not Uploaded"
+    qualification: str | None = None
+    specialization: str | None = None
+    experience: str | None = None
+    clinicName: str | None = None
+    city: str | None = None
+    contactInfo: str | None = None
+    address: str | None = None
+    aboutText: str | None = None
+    profilePicUrl: str | None = None
+    licenseNumber: str | None = None
+    licenseFileUrl: str | None = None
+    licenseFileName: str | None = None
+    licenseStatus: str | None = "Not Uploaded"
 
     class Config:
         from_attributes = True
+
 
 class TodayAppointment(BaseModel):
     id: str
@@ -55,12 +58,14 @@ class TodayAppointment(BaseModel):
     type: str
     time: str
 
+
 class DoctorDashboardStats(BaseModel):
     patientsSeenToday: int
     patientsSeenYesterdayDiff: int
     pendingRequests: int
     totalActivePatients: int
-    todaysAppointments: List[TodayAppointment]
+    todaysAppointments: list[TodayAppointment]
+
 
 class DoctorPatientListItem(BaseModel):
     name: str
@@ -69,9 +74,11 @@ class DoctorPatientListItem(BaseModel):
     time: str
     status: str
 
+
 class DoctorPatientsResponse(BaseModel):
-    pastAppointments: List[DoctorPatientListItem]
-    upcomingAppointments: List[DoctorPatientListItem]
+    pastAppointments: list[DoctorPatientListItem]
+    upcomingAppointments: list[DoctorPatientListItem]
+
 
 class ScheduleAppointment(BaseModel):
     id: str
@@ -80,28 +87,32 @@ class ScheduleAppointment(BaseModel):
     time: str
     status: str
 
+
 class CalendarMonth(BaseModel):
-    confirmedDates: List[int]
-    pendingDates: List[int]
-    rescheduledDates: List[int]
+    confirmedDates: list[int]
+    pendingDates: list[int]
+    rescheduledDates: list[int]
+
 
 class DoctorScheduleResponse(BaseModel):
     date: str
-    appointments: List[ScheduleAppointment]
+    appointments: list[ScheduleAppointment]
     calendarMonth: CalendarMonth
+
 
 class DoctorPublicProfile(BaseModel):
     id: str
     name: str
-    category: Optional[str] = None
-    city: Optional[str] = None
-    rating: Optional[float] = None
-    image: Optional[str] = None
-    experience: Optional[str] = None
+    category: str | None = None
+    city: str | None = None
+    rating: float | None = None
+    image: str | None = None
+    experience: str | None = None
 
     class Config:
         from_attributes = True
 
+
 class AvailableSlotsResponse(BaseModel):
-    availableDates: List[str]
-    timeSlots: List[str]
+    availableDates: list[str]
+    timeSlots: list[str]

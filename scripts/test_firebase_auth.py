@@ -46,6 +46,7 @@ def test_email_auth():
     id_token = data.get("idToken")
     firebase_uid = data.get("localId")
     print("User created successfully!")
+    print(f"\n--- COPY THIS TOKEN ---\n{id_token}\n-----------------------\n")
 
     # 2. Send Verification Email
     verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_WEB_API_KEY}"
@@ -134,6 +135,7 @@ def test_phone_auth():
     id_token = data.get("idToken")
     firebase_uid = data.get("localId")
     is_new_user = data.get("isNewUser", False)
+    print(f"\n--- COPY THIS TOKEN ---\n{id_token}\n-----------------------\n")
     
     print(f"✅ Phone verification successful! (New User: {is_new_user})")
 
@@ -147,21 +149,19 @@ def test_phone_auth():
 def send_to_fastapi(id_token, firebase_uid, name):
     print("\n-> Sending profile to FastAPI backend...")
     
-    # Step 1: Register user with role
+    # Step 1: Register user with role (UPDATED FOR FIREBASE-NATIVE FLOW)
     register_url = "http://127.0.0.1:8000/api/v1/auth/login"
-    print("  1. Registering user via /api/v1/auth/login...")
+    print("  1. Syncing user via /api/v1/auth/login...")
     
     try:
-        # Use login endpoint which auto-creates users
         login_response = requests.post(
             register_url,
-            json={
-                "email": f"{name.replace(' ', '').lower()}@test.com",
-                "password": "SecurePassword123!",
-                "role": "doctor"
-            }
+            json={"role": "doctor"},
+            headers={"Authorization": f"Bearer {id_token}"}
         )
-        print(f"  Login/Register Status: {login_response.status_code}")
+        print(f"  Login/Sync Status: {login_response.status_code}")
+        if login_response.status_code != 200:
+             print(f"  Error: {login_response.json()}")
     except requests.exceptions.ConnectionError:
         print("  Failed to connect. Skipping login step.")
     

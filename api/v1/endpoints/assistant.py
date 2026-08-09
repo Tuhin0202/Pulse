@@ -1,23 +1,28 @@
-import uuid
-import os
 import json
+import os
 import shutil
+import uuid
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from api.db.session import get_db
-from api.models.user import User
-from api.models.patient import Patient
-from api.models.rag import ChatMessage
 from api.core.security import get_current_user
+from api.db.session import get_db
+from api.models.rag import ChatMessage
+from api.models.user import User
 from api.services.ocr import ocr_service
 from api.services.rag_service import rag_service
 
 router = APIRouter()
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "uploads")
+UPLOAD_DIR = os.path.join(
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ),
+    "uploads",
+)
 
 
 def _ensure_upload_dir():
@@ -37,7 +42,7 @@ async def send_message(
     text: str = Form(""),
     attachments: list[UploadFile] = File(None),
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Patient sends a message with optional file attachments. Returns AI response."""
     now = datetime.now()
@@ -99,8 +104,7 @@ async def send_message(
 # 41. GET /health-assistant/history
 @router.get("/history")
 async def get_history(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """Loads chat history for the current patient."""
     result = await db.execute(
@@ -115,7 +119,9 @@ async def get_history(
             "id": msg.id,
             "sender": msg.role,
             "text": msg.content,
-            "attachments": json.loads(msg.attachment_urls) if msg.attachment_urls else None,
+            "attachments": json.loads(msg.attachment_urls)
+            if msg.attachment_urls
+            else None,
             "timestamp": _format_timestamp(msg.created_at) if msg.created_at else "",
         }
         for msg in messages
@@ -125,8 +131,7 @@ async def get_history(
 # 42. DELETE /health-assistant/history
 @router.delete("/history")
 async def clear_history(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """Clears the entire chat history for the patient."""
     result = await db.execute(

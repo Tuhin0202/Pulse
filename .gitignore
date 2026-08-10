@@ -1,0 +1,57 @@
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+test_documents/
+uploads/
+local_dev.db
+# React / Node.js
+node_modules/
+/src/dist/
+/src/build/
+.npm/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS / Editor
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+
+# Vercel
+.vercel
+
+# API KEYS
+firebase-service-account.json
+*service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+config.json
+
+# Node modules
+node_modules/
+node_modules

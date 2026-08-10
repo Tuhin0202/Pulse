@@ -38,17 +38,10 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
   const [bookingDoctor, setBookingDoctor] = useState<any>(null);
   const [bookings, setBookings] = useState<{[doctorId: number]: { date: string, slot: string }}>({});
   const [viewingRecord, setViewingRecord] = useState<any | null>(null);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [records, setRecords] = useState<any[]>([]);
 
-  const mockDoctors = [
-    { id: 1, name: 'Dr. Sarah Jenkins', category: 'Cardiology', city: 'San Francisco', rating: 4.9, image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=faces', experience: '15 years' },
-    { id: 2, name: 'Dr. Michael Chen', category: 'Orthopedics', city: 'New York', rating: 4.8, image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=faces', experience: '12 years' },
-    { id: 3, name: 'Dr. Emily Rodriguez', category: 'Pediatrics', city: 'San Francisco', rating: 4.7, image: 'https://images.unsplash.com/photo-1594824436951-7f12689c1682?w=150&h=150&fit=crop&crop=faces', experience: '8 years' },
-    { id: 4, name: 'Dr. James Wilson', category: 'Dermatology', city: 'Chicago', rating: 4.9, image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&h=150&fit=crop&crop=faces', experience: '20 years' },
-    { id: 5, name: 'Dr. Olivia Martinez', category: 'General Practice', city: 'Los Angeles', rating: 4.6, image: 'https://images.unsplash.com/photo-1594824436951-7f12689c1682?w=150&h=150&fit=crop&crop=faces', experience: '10 years' },
-    { id: 6, name: 'Dr. William Brown', category: 'Cardiology', city: 'New York', rating: 4.8, image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&h=150&fit=crop&crop=faces', experience: '18 years' }
-  ];
-
-  const filteredDoctors = mockDoctors.filter(doc => {
+  const filteredDoctors = doctors.filter(doc => {
     return (
       doc.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
       (cityFilter === '' || doc.city === cityFilter) &&
@@ -56,38 +49,35 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
     );
   });
 
-
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
-  const todaysBookings = Object.entries(bookings).filter(([doctorId, booking]: [string, any]) => {
+  const todaysBookings = Object.entries(bookings).filter(([, booking]: [string, any]) => {
     const bookingDate = new Date(booking.date);
     return bookingDate >= todayStart && bookingDate <= todayEnd;
   }).map(([doctorId, booking]: [string, any]) => {
     return {
-      doctor: mockDoctors.find(d => d.id === parseInt(doctorId)),
+      doctor: doctors.find(d => d.id === parseInt(doctorId)),
       ...booking
     };
   });
 
-  const mockRecords = [
-    { id: 1, title: 'Complete Blood Count', type: 'Lab Report', date: 'Aug 01, 2026', doctor: 'Dr. Sarah Jenkins', format: 'PDF', size: '1.2 MB' },
-    { id: 2, title: 'Cardiology Prescription', type: 'Prescriptions', date: 'Jul 28, 2026', doctor: 'Dr. Jane Smith', format: 'JPG', size: '850 KB' },
-    { id: 3, title: 'MRI Scan Report', type: 'Lab Report', date: 'Jul 15, 2026', doctor: 'Dr. Michael Chen', format: 'PNG', size: '2.4 MB' },
-    { id: 4, title: 'General Checkup Prescription', type: 'Prescriptions', date: 'Jun 10, 2026', doctor: 'Dr. Emily White', format: 'PDF', size: '450 KB' },
-  ];
+  useEffect(() => {
+    fetch('/api/v1/doctors').then(r => r.json()).then(setDoctors).catch(() => {});
+    fetch('/api/v1/patient/records').then(r => r.json()).then(setRecords).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'Book' && doctorId) {
-      const doc = mockDoctors.find(d => d.id === parseInt(doctorId));
+      const doc = doctors.find(d => d.id === parseInt(doctorId));
       if (doc) setBookingDoctor(doc);
     } else if (activeTab === 'Search' && id) {
-      const doc = mockDoctors.find(d => d.id === parseInt(id));
+      const doc = doctors.find(d => d.id === parseInt(id));
       if (doc) setSelectedDoctor(doc);
     }
-  }, [id, doctorId, activeTab]);
+  }, [id, doctorId, activeTab, doctors]);
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
@@ -140,7 +130,7 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                   ) : (
                     <div className="flex flex-col">
                       {Object.entries(bookings).map(([doctorId, booking]: [string, any]) => {
-                        const doctor = mockDoctors.find(d => d.id === parseInt(doctorId));
+                        const doctor = doctors.find(d => d.id === parseInt(doctorId));
                         const bookingDate = new Date(booking.date);
                         return (
                           <div key={doctorId} className="px-4 py-3 border-b border-outline-variant hover:bg-[#f8fafc] transition-colors last:border-0">
@@ -169,7 +159,7 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
               onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
               className="w-10 h-10 rounded-full bg-[#005bb5] text-white flex items-center justify-center font-bold text-[14px] focus:outline-none focus:ring-2 focus:ring-[#005bb5] focus:ring-offset-2"
             >
-              JD
+              {patientData?.fullName ? patientData.fullName.charAt(0).toUpperCase() : '?'}
             </button>
             {isProfileDropdownOpen && (
               <>
@@ -272,10 +262,9 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                     className="block w-full pl-9 pr-10 py-2 text-base border border-outline-variant focus:outline-none focus:ring-1 focus:ring-[#005bb5] focus:border-[#005bb5] sm:text-sm rounded-md appearance-none"
                   >
                     <option value="">All Cities</option>
-                    <option value="San Francisco">San Francisco</option>
-                    <option value="New York">New York</option>
-                    <option value="Chicago">Chicago</option>
-                    <option value="Los Angeles">Los Angeles</option>
+                    {Array.from(new Set(doctors.map(d => d.city).filter(Boolean))).map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
                   </select>
                 </div>
                 
@@ -289,11 +278,9 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                     className="block w-full pl-9 pr-10 py-2 text-base border border-outline-variant focus:outline-none focus:ring-1 focus:ring-[#005bb5] focus:border-[#005bb5] sm:text-sm rounded-md appearance-none"
                   >
                     <option value="">All Categories</option>
-                    <option value="Cardiology">Cardiology</option>
-                    <option value="Orthopedics">Orthopedics</option>
-                    <option value="Pediatrics">Pediatrics</option>
-                    <option value="Dermatology">Dermatology</option>
-                    <option value="General Practice">General Practice</option>
+                    {Array.from(new Set(doctors.map(d => d.category).filter(Boolean))).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -379,7 +366,11 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
           <div className="space-y-6">
             <h1 className="text-[24px] font-bold text-on-surface">Prescriptions & Reports</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {mockRecords.map((record) => (
+              {records.length === 0 ? (
+                <div className="col-span-full bg-white rounded-xl border border-outline-variant p-8 text-center">
+                  <p className="text-on-surface-variant">No records found.</p>
+                </div>
+              ) : records.map((record) => (
                 <div key={record.id} className="bg-white rounded-xl border border-outline-variant p-5 flex flex-col h-full shadow-sm hover:border-[#005bb5] transition-colors">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
@@ -430,14 +421,14 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
         ) : activeTab === 'Health Assistant' ? (
           <div className="space-y-6">
             <h1 className="text-[24px] font-bold text-on-surface">Health Assistant</h1>
-            <HealthAssistant />
+            <HealthAssistant patientName={patientData?.fullName} />
           </div>
         ) : activeTab === 'Dashboard' ? (
           <div className="space-y-6">
             <div className="mb-6 flex justify-between items-center">
               <div>
                 <h1 className="text-[32px] font-bold text-on-surface mb-1">
-                  Welcome back, {patientData?.fullName || 'John Doe'}
+                  Welcome back, {patientData?.fullName || ''}
                 </h1>
                 <p className="text-on-surface-variant text-[15px]">
                   {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -509,14 +500,14 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
             <div className="flex items-center space-x-6">
               <div className="relative">
                 <div className="w-[100px] h-[100px] rounded-full bg-surface-container flex items-center justify-center border-[3px] border-white shadow-md text-[36px] font-bold text-on-surface">
-                  {patientData?.fullName ? patientData.fullName.charAt(0).toUpperCase() : 'J'}
+                  {patientData?.fullName ? patientData.fullName.charAt(0).toUpperCase() : ''}
                 </div>
                 <div className="absolute bottom-1 right-1 w-7 h-7 bg-[#059669] rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
-                  {patientData?.bloodGroup?.replace(/[^A-Za-z+-]/g, '') || 'O+'}
+                  {patientData?.bloodGroup?.replace(/[^A-Za-z+-]/g, '') || ''}
                 </div>
               </div>
               <div>
-                <h1 className="text-[32px] font-bold text-on-surface leading-tight mb-3">{patientData?.fullName || 'John Doe'}</h1>
+                <h1 className="text-[32px] font-bold text-on-surface leading-tight mb-3">{patientData?.fullName || ''}</h1>
                 <div className="flex flex-wrap gap-3">
                   {patientData?.dateOfBirth && (
                     <div className="flex items-center px-3 py-1 bg-[#f1f5f9] rounded-full text-[13px] font-medium text-on-surface-variant">
@@ -524,10 +515,12 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                       {patientData.dateOfBirth}
                     </div>
                   )}
-                  <div className="flex items-center px-3 py-1 bg-[#eff6ff] rounded-full text-[13px] font-medium text-[#005bb5]">
-                    <Droplet className="w-3.5 h-3.5 mr-1.5" />
-                    Group {patientData?.bloodGroup || 'O+'}
-                  </div>
+                  {patientData?.bloodGroup && (
+                    <div className="flex items-center px-3 py-1 bg-[#eff6ff] rounded-full text-[13px] font-medium text-[#005bb5]">
+                      <Droplet className="w-3.5 h-3.5 mr-1.5" />
+                      Group {patientData.bloodGroup}
+                    </div>
+                  )}
                   <div className="flex items-center px-3 py-1 bg-[#ecfdf5] rounded-full text-[13px] font-medium text-[#059669]">
                     <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
                     Verified Patient
@@ -570,19 +563,19 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                 <div className="grid grid-cols-2 gap-y-6">
                   <div>
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Full Name</div>
-                    <div className="text-[15px] text-on-surface">{patientData?.fullName || 'John Doe'}</div>
+                    <div className="text-[15px] text-on-surface">{patientData?.fullName || ''}</div>
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Date of Birth</div>
-                    <div className="text-[15px] text-on-surface">{patientData?.dateOfBirth || 'May 12, 1992'}</div>
+                    <div className="text-[15px] text-on-surface">{patientData?.dateOfBirth || ''}</div>
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Blood Group</div>
-                    <div className="text-[15px] text-on-surface">{patientData?.bloodGroup || 'O Positive (O+)'}</div>
+                    <div className="text-[15px] text-on-surface">{patientData?.bloodGroup || ''}</div>
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Gender</div>
-                    <div className="text-[15px] text-on-surface">Male</div>
+                    <div className="text-[15px] text-on-surface">{patientData?.gender || ''}</div>
                   </div>
                 </div>
               </div>
@@ -594,17 +587,17 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Residential Address</div>
                     <div className="flex items-start text-[15px] text-on-surface">
                       <MapPin className="w-4 h-4 mr-2 text-[#005bb5] shrink-0 mt-0.5" />
-                      {patientData?.address || '123 Health St, Wellness District, San Francisco, CA 94103'}
+                      {patientData?.address || ''}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Phone</div>
-                      <div className="text-[15px] text-on-surface">{patientData?.phone || '+1 (555) 123-4567'}</div>
+                      <div className="text-[15px] text-on-surface">{patientData?.phone || ''}</div>
                     </div>
                     <div>
                       <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Email</div>
-                      <div className="text-[15px] text-on-surface">{patientData?.email || 'john.doe@email.com'}</div>
+                      <div className="text-[15px] text-on-surface">{patientData?.email || ''}</div>
                     </div>
                   </div>
                 </div>
@@ -638,7 +631,7 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[22px] font-extrabold text-rose-950">{patientData?.bloodPressure || '120/80 mmHg'}</div>
+                    <div className="text-[22px] font-extrabold text-rose-950">{patientData?.bloodPressure || ''}</div>
                     <div className="text-[12px] font-medium text-rose-700 mt-1 flex items-center">
                       <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
                       Optimal Range
@@ -654,7 +647,7 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[22px] font-extrabold text-red-950">{patientData?.heartRate || '72 bpm'}</div>
+                    <div className="text-[22px] font-extrabold text-red-950">{patientData?.heartRate || ''}</div>
                     <div className="text-[12px] font-medium text-red-700 mt-1 flex items-center">
                       <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
                       Resting Rate
@@ -670,7 +663,7 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[22px] font-extrabold text-blue-950">{patientData?.height || '175 cm'}</div>
+                    <div className="text-[22px] font-extrabold text-blue-950">{patientData?.height || ''}</div>
                     <div className="text-[12px] font-medium text-blue-700 mt-1">
                       Body Stature
                     </div>
@@ -685,7 +678,7 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[22px] font-extrabold text-emerald-950">{patientData?.weight || '70 kg'}</div>
+                    <div className="text-[22px] font-extrabold text-emerald-950">{patientData?.weight || ''}</div>
                     <div className="text-[12px] font-medium text-emerald-700 mt-1">
                       Body Mass Index: 22.9 (Healthy)
                     </div>

@@ -27,30 +27,30 @@ export default function App() {
   const navigate = useNavigate();
   
   const [patientData, setPatientData] = useState<PatientData>({
-    fullName: 'John Doe',
-    dateOfBirth: '1992-05-12',
-    bloodGroup: 'O+',
-    address: '123 Health St, Wellness District, San Francisco, CA 94103',
-    phone: '+1 (555) 123-4567',
-    email: 'john.doe@email.com',
-    bloodPressure: '120/80 mmHg',
-    heartRate: '72 bpm',
-    height: '175 cm',
-    weight: '70 kg'
+    fullName: '',
+    dateOfBirth: '',
+    bloodGroup: '',
+    address: '',
+    phone: '',
+    email: '',
+    bloodPressure: '',
+    heartRate: '',
+    height: '',
+    weight: ''
   });
   
   const [doctorData, setDoctorData] = useState<DoctorData>({
-    fullName: 'Dr. Jane Smith',
-    qualification: 'MBBS, MD',
-    specialization: 'Cardiology',
-    experience: '12',
-    clinicName: 'Pulse Wellness Center',
-    city: 'Mumbai',
-    contactInfo: '+91 98765 43210',
-    address: 'Mumbai, Maharashtra',
-    licenseNumber: 'MCI-2012-987654',
-    licenseFileName: 'Medical_License_Dr_Jane_Smith.pdf',
-    licenseStatus: 'Verified'
+    fullName: '',
+    qualification: '',
+    specialization: '',
+    experience: '',
+    clinicName: '',
+    city: '',
+    contactInfo: '',
+    address: '',
+    licenseNumber: '',
+    licenseFileName: '',
+    licenseStatus: 'Not Uploaded'
   });
 
   const isDashboardRoute = location.pathname.startsWith('/doctor/') || location.pathname.startsWith('/patient/') || location.pathname === '/health-assistant';

@@ -48,36 +48,23 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
   const [isScheduleDrawerOpen, setIsScheduleDrawerOpen] = useState(true);
   const [scheduleFilter, setScheduleFilter] = useState<'all' | 'rescheduled'>('all');
   const [rescheduleModalPatient, setRescheduleModalPatient] = useState<string | null>(null);
-  const [rescheduledAppts, setRescheduledAppts] = useState<any[]>([
-    {
-      id: '#PT-12345',
-      name: 'Jameson Carter',
-      type: 'General Oncology Consultation',
-      oldDate: 'Oct 2, 10:30 AM',
-      newDate: 'Oct 3, 2023',
-      time: '09:15 AM',
-      status: 'approved'
-    }
-  ]);
-  const [upcomingAppointments, setUpcomingAppointments] = useState([
-    { name: 'David Wilson', id: '#PH-5512', date: 'Oct 30, 2023', time: '10:00 AM', initial: 'DW', bgColor: 'bg-[#005bb5]', textColor: 'text-white', status: 'Upcoming' },
-    { name: 'Emma Green', id: '#PH-3349', date: 'Oct 30, 2023', time: '03:45 PM', initial: 'EG', bgColor: 'bg-[#dbeafe]', textColor: 'text-[#1e40af]', status: 'Upcoming' },
-  ]);
+  const [rescheduledAppts, setRescheduledAppts] = useState<any[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isEditingVitals, setIsEditingVitals] = useState(false);
   const [isEditingTiming, setIsEditingTiming] = useState(false);
   const [timings, setTimings] = useState([
-    { day: 'Monday', start: '09:00 AM', end: '05:00 PM', isWorking: true },
-    { day: 'Tuesday', start: '09:00 AM', end: '05:00 PM', isWorking: true },
-    { day: 'Wednesday', start: '09:00 AM', end: '05:00 PM', isWorking: true },
-    { day: 'Thursday', start: '09:00 AM', end: '05:00 PM', isWorking: true },
-    { day: 'Friday', start: '09:00 AM', end: '05:00 PM', isWorking: true },
-    { day: 'Saturday', start: '10:00 AM', end: '02:00 PM', isWorking: true },
+    { day: 'Monday', start: '', end: '', isWorking: false },
+    { day: 'Tuesday', start: '', end: '', isWorking: false },
+    { day: 'Wednesday', start: '', end: '', isWorking: false },
+    { day: 'Thursday', start: '', end: '', isWorking: false },
+    { day: 'Friday', start: '', end: '', isWorking: false },
+    { day: 'Saturday', start: '', end: '', isWorking: false },
     { day: 'Sunday', start: '', end: '', isWorking: false },
   ]);
 
-  const [currentDate, setCurrentDate] = useState(new Date(2023, 9, 1)); // Oct 2023 for demo
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
@@ -115,18 +102,18 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
   ];
 
   const [isEditingAbout, setIsEditingAbout] = useState(false);
-  const [aboutText, setAboutText] = useState('Experienced Cardiologist with over 12 years of clinical experience. Specializes in preventive cardiology, heart failure management, and non-invasive cardiovascular imaging. Dedicated to providing patient-centered care with the latest evidence-based treatments.');
+  const [aboutText, setAboutText] = useState('');
   const [patientVitals, setPatientVitals] = useState({
-    name: patientData?.fullName || 'John Doe',
-    age: '34 Years',
-    gender: 'Male',
-    bloodType: patientData?.bloodGroup || 'O+',
-    contact: patientData?.phone || '+1 (555) 123-4567',
-    bloodPressure: patientData?.bloodPressure ? patientData.bloodPressure.replace(' mmHg', '') : '120/80',
-    heartRate: patientData?.heartRate ? patientData.heartRate.replace(' bpm', '') : '72',
-    height: patientData?.height ? patientData.height.replace(' cm', '') : '175',
-    weight: patientData?.weight ? patientData.weight.replace(' kg', '') : '70',
-    summary: 'Patient presented with mild insulin resistance in 2021. Managed via dietary control and Metformin. Regular screenings show stable glycemic levels. No known drug allergies.'
+    name: patientData?.fullName || '',
+    age: '',
+    gender: '',
+    bloodType: patientData?.bloodGroup || '',
+    contact: patientData?.phone || '',
+    bloodPressure: patientData?.bloodPressure ? patientData.bloodPressure.replace(' mmHg', '') : '',
+    heartRate: patientData?.heartRate ? patientData.heartRate.replace(' bpm', '') : '',
+    height: patientData?.height ? patientData.height.replace(' cm', '') : '',
+    weight: patientData?.weight ? patientData.weight.replace(' kg', '') : '',
+    summary: ''
   });
 
   useEffect(() => {
@@ -147,8 +134,8 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
   const licenseFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [licenseData, setLicenseData] = useState({
-    number: doctorData?.licenseNumber || 'MCI-2012-987654',
-    fileName: doctorData?.licenseFileName || 'Medical_License_Dr_Jane_Smith.pdf',
+    number: doctorData?.licenseNumber || '',
+    fileName: doctorData?.licenseFileName || '',
     fileUrl: doctorData?.licenseFileUrl || '',
     status: doctorData?.licenseStatus || 'Verified'
   });
@@ -290,8 +277,8 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                       }} 
                     />
                     <img 
-                      src={profilePic || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=faces"} 
-                      alt={doctorData?.fullName || "Dr. Jane Smith"} 
+                      src={profilePic || ''} 
+                      alt={doctorData?.fullName || ""} 
                       className="w-[100px] h-[100px] rounded-full object-cover border-[3px] border-white shadow-md group-hover:opacity-75 transition-opacity"
                     />
                     <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -299,15 +286,19 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                     </div>
                   </div>
                   <div>
-                    <h1 className="text-[32px] font-bold text-on-surface leading-tight mb-2">{doctorData?.fullName || 'Dr. Jane Smith'}</h1>
-                    <div className="text-[16px] text-on-surface-variant font-medium mb-3">{doctorData?.qualification || 'MBBS, MD'} - {doctorData?.specialization || 'Cardiology'}</div>
+                    <h1 className="text-[32px] font-bold text-on-surface leading-tight mb-2">{doctorData?.fullName || ''}</h1>
+                    <div className="text-[16px] text-on-surface-variant font-medium mb-3">
+                      {doctorData?.qualification || ''} {doctorData?.qualification && doctorData?.specialization ? '- ' : ''}{doctorData?.specialization || ''}
+                    </div>
                     <div className="flex flex-wrap gap-3">
-                      <div className="flex items-center px-3 py-1 bg-[#f1f5f9] rounded-full text-[13px] font-medium text-on-surface-variant">
-                        {doctorData?.experience || '12'} Years Experience
-                      </div>
+                      {doctorData?.experience && (
+                        <div className="flex items-center px-3 py-1 bg-[#f1f5f9] rounded-full text-[13px] font-medium text-on-surface-variant">
+                          {doctorData.experience} Years Experience
+                        </div>
+                      )}
                       <div className="flex items-center px-3 py-1 bg-[#ecfdf5] border border-[#a7f3d0] rounded-full text-[13px] font-medium text-[#059669]">
                         <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
-                        Verified License ({licenseData.number})
+                        Verified License {licenseData.number ? `(${licenseData.number})` : ''}
                       </div>
                     </div>
                   </div>
@@ -387,7 +378,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
 
                   <div>
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Issuing Medical Board</div>
-                    <div className="text-[14px] text-on-surface font-medium">Medical Council of India (MCI) / State Medical Board</div>
+                    <div className="text-[14px] text-on-surface font-medium"></div>
                   </div>
                 </div>
 
@@ -433,18 +424,18 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                 <div className="space-y-6">
                   <div>
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Clinic Name</div>
-                    <div className="text-[15px] text-on-surface">{doctorData?.clinicName || 'Pulse Wellness Center'}</div>
+                    <div className="text-[15px] text-on-surface">{doctorData?.clinicName || ''}</div>
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Location</div>
                     <div className="flex items-start text-[15px] text-on-surface">
                       <MapPin className="w-4 h-4 mr-2 text-[#005bb5] shrink-0 mt-0.5" />
-                      {doctorData?.address || 'Mumbai, Maharashtra'}
+                      {doctorData?.address || ''}
                     </div>
                   </div>
                   <div>
                     <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Contact Info</div>
-                    <div className="text-[15px] text-on-surface">{doctorData?.contactInfo || '+91 98765 43210'}</div>
+                    <div className="text-[15px] text-on-surface">{doctorData?.contactInfo || ''}</div>
                   </div>
                 </div>
               </div>
@@ -565,10 +556,10 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
           <div className="space-y-6">
             <div className="mb-8">
               <h1 className="text-[32px] font-bold text-on-surface mb-1">
-                Welcome back, {doctorData?.fullName || 'Dr. Miller'}
+                Welcome back, {doctorData?.fullName || ''}
               </h1>
               <p className="text-[15px] text-on-surface-variant">
-                Here is your schedule for <span className="font-semibold text-[#005bb5]">Tomorrow, Thursday, July 30</span>.
+                Here is your schedule for today.
               </p>
             </div>
 
@@ -587,11 +578,19 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { id: 'PX-999', name: 'Future Patient', initial: 'FP', type: 'TEST', time: '09:00 AM' },
-                      { id: 'PX-1002', name: 'Sarah Mitchell', initial: 'SM', type: 'FOLLOW UP', time: '10:30 AM' },
-                      { id: 'PX-1005', name: 'David Wilson', initial: 'DW', type: 'ROUTINE', time: '01:15 PM' },
-                    ].map((pt, index) => (
+                    {upcomingAppointments.filter(apt => {
+                      const today = new Date();
+                      const aptDate = new Date(apt.date);
+                      return aptDate.toDateString() === today.toDateString();
+                    }).length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-8 text-center text-on-surface-variant text-[14px]">No appointments scheduled for today.</td>
+                      </tr>
+                    ) : upcomingAppointments.filter(apt => {
+                      const today = new Date();
+                      const aptDate = new Date(apt.date);
+                      return aptDate.toDateString() === today.toDateString();
+                    }).map((pt, index) => (
                       <tr 
                         key={index} 
                         onClick={() => navigate(`/doctor/patient/${pt.id}`)}
@@ -604,7 +603,6 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                             <span className="text-[14px] font-medium text-on-surface">{pt.name}</span>
                           </div>
                         </td>
-
                         <td className="px-6 py-4">
                           <div className="text-[13px] text-on-surface-variant">Today</div>
                           <div className="text-[14px] font-bold text-[#005bb5]">{pt.time}</div>
@@ -659,8 +657,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                 <div>
                   <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Patients Seen Today</div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-[28px] font-bold text-on-surface leading-none">12</span>
-                    <span className="text-[12px] font-medium text-[#059669]">+2 from yesterday</span>
+                    <span className="text-[28px] font-bold text-on-surface leading-none">—</span>
                   </div>
                 </div>
               </div>
@@ -672,8 +669,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                 <div>
                   <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Pending Requests</div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-[28px] font-bold text-on-surface leading-none">04</span>
-                    <span className="text-[12px] font-medium text-[#dc2626]">Requires Action</span>
+                    <span className="text-[28px] font-bold text-on-surface leading-none">—</span>
                   </div>
                 </div>
               </div>
@@ -685,8 +681,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                 <div>
                   <div className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Total Patients</div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-[28px] font-bold text-on-surface leading-none">1,248</span>
-                    <span className="text-[12px] font-medium text-on-surface-variant">Active Profiles</span>
+                    <span className="text-[28px] font-bold text-on-surface leading-none">—</span>
                   </div>
                 </div>
               </div>
@@ -703,11 +698,19 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                   <span className="px-3 py-1 bg-surface-container-low text-on-surface-variant text-[12px] font-medium rounded-md">Read-only</span>
                 </div>
 
-                {[
-                  { name: 'Jane Smith', id: '#PH-9821', date: 'Oct 24, 2023', time: '09:30 AM', initial: 'JS', bgColor: 'bg-[#e0e7ff]', textColor: 'text-[#3730a3]' },
-                  { name: 'Robert Miller', id: '#PH-7740', date: 'Oct 22, 2023', time: '02:15 PM', initial: 'RM', bgColor: 'bg-[#e2e8f0]', textColor: 'text-[#475569]' },
-                  { name: 'Alice Lawson', id: '#PH-2109', date: 'Oct 20, 2023', time: '11:00 AM', initial: 'AL', bgColor: 'bg-[#e2e8f0]', textColor: 'text-[#475569]' },
-                ].map((apt, i) => (
+                {upcomingAppointments.filter(apt => {
+                  const today = new Date();
+                  const aptDate = new Date(apt.date);
+                  return aptDate < today;
+                }).length === 0 ? (
+                  <div className="bg-white rounded-xl border border-outline-variant p-6 text-center text-on-surface-variant text-[14px]">
+                    No past appointments.
+                  </div>
+                ) : upcomingAppointments.filter(apt => {
+                  const today = new Date();
+                  const aptDate = new Date(apt.date);
+                  return aptDate < today;
+                }).map((apt, i) => (
                   <div 
                     key={i} 
                     onClick={() => navigate(`/doctor/patient/${apt.id.replace('#', '')}`)}
@@ -952,34 +955,23 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                          const cellDate = isCurrentMonth ? date : null;
                          const isSelected = selectedDate === cellDate;
                          
-                         // Mock data logic based on date
+                         // Check appointment dots dynamically
                          let isRescheduled = false;
                          let isConfirmed = false;
                          let isPending = false;
                          
                          if (cellDate) {
-                           // Example mock logic matching month
-                           if (currentDate.getMonth() === 9 && currentDate.getFullYear() === 2023) {
-                             if (cellDate === 11) isRescheduled = true;
-                             if (cellDate === 2 || cellDate === 15) isConfirmed = true;
-                             if (cellDate === 4 || cellDate === 11) isPending = true;
-                             if (cellDate === 20) { isConfirmed = true; isPending = true; }
-                           } else {
-                             // Randomly populate a few dates for other months
-                             if (cellDate === 5) isConfirmed = true;
-                             if (cellDate === 12) isPending = true;
-                           }
-                           
-                           // Dynamically check rescheduled appointments
                            const monthStr = monthNames[currentDate.getMonth()].substring(0, 3);
                            const cellDateStr = `${monthStr} ${cellDate}, ${currentDate.getFullYear()}`;
+                           
                            if (rescheduledAppts.some(apt => apt.newDate === cellDateStr)) {
                              isRescheduled = true;
                            }
-                           
-                           // Check approved upcoming appointments
                            if (upcomingAppointments.some(apt => apt.date === cellDateStr && apt.status === 'Approved')) {
                              isConfirmed = true;
+                           }
+                           if (upcomingAppointments.some(apt => apt.date === cellDateStr && apt.status === 'Upcoming')) {
+                             isPending = true;
                            }
                          }
 
@@ -1086,7 +1078,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                           </div>
                        </div>
                        
-                       <div className={`rounded-lg p-3 flex justify-between items-center border ${apt.status === 'approved' ? 'bg-[#f8fafc] border-outline-variant' : 'bg-[#fff7ed] border-[#ffedd5]'}`}>
+                       <div className={`rounded-lg p-3 flex justify-between items-center border ${apt.status === 'approved' ? 'bg-[#f8fafc] border-outline-variant' : 'bg-[#fff7ed] border-[#fed7aa]'}`}>
                           {apt.oldDate ? (
                             <>
                               <div>
@@ -1504,7 +1496,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
               
               <div className="border border-outline-variant rounded-lg p-3 bg-white">
                 <div className="flex justify-between items-center mb-3 px-2">
-                  <span className="font-bold text-[14px] text-on-surface">October 2023</span>
+                  <span className="font-bold text-[14px] text-on-surface">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-center mb-2">
                   {['S','M','T','W','T','F','S'].map((d, i) => (
@@ -1512,28 +1504,31 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                   ))}
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-center">
-                  {[24,25,26,27,28,29,30, 1,2,3,4,5,6,7].map((date, i) => (
-                    <button 
-                      key={i} 
-                      onClick={() => {
-                         const newApt = {
-                           id: `#PT-${Math.floor(10000 + Math.random() * 90000)}`,
-                           name: rescheduleModalPatient,
-                           type: 'Rescheduled Consultation',
-                           oldDate: 'Today, 09:00 AM',
-                           newDate: `Oct ${date}, 2023`,
-                           time: '11:30 AM',
-                           status: 'approved'
-                         };
-                         fetch(`/api/v1/appointments/mock-id/reschedule`, { method: 'PUT' }).catch(err => console.error(err));
-                         setRescheduledAppts([...rescheduledAppts, newApt]);
-                         setRescheduleModalPatient(null);
-                      }}
-                      className={`h-10 w-10 flex items-center justify-center text-[14px] rounded-full mx-auto hover:bg-[#eff6ff] hover:text-[#005bb5] transition-colors ${date === 3 ? 'bg-[#005bb5] text-white hover:bg-[#005bb5] hover:text-white' : 'text-on-surface'}`}
-                    >
-                      {date}
-                    </button>
-                  ))}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                     const date = i + 1;
+                     return (
+                        <button 
+                          key={i} 
+                          onClick={() => {
+                             const newApt = {
+                               id: `#PT-${Math.floor(10000 + Math.random() * 90000)}`,
+                               name: rescheduleModalPatient,
+                               type: 'Rescheduled Consultation',
+                               oldDate: 'Pending',
+                               newDate: `${monthNames[currentDate.getMonth()].substring(0, 3)} ${date}, ${currentDate.getFullYear()}`,
+                               time: '11:30 AM',
+                               status: 'approved'
+                             };
+                             
+                             setRescheduledAppts([...rescheduledAppts, newApt]);
+                             setRescheduleModalPatient(null);
+                          }}
+                          className={`h-10 w-10 flex items-center justify-center text-[14px] rounded-full mx-auto hover:bg-[#eff6ff] hover:text-[#005bb5] transition-colors text-on-surface`}
+                        >
+                          {date}
+                        </button>
+                     );
+                  })}
                 </div>
               </div>
             </div>

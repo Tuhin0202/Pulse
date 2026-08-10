@@ -11,16 +11,16 @@ interface DoctorProfileSetupProps {
 export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSetupProps) {
   const licenseFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<Partial<DoctorData>>({
-    fullName: initialData?.fullName || 'Dr. Jane Smith',
-    qualification: initialData?.qualification || 'MBBS, MD - Cardiology',
-    specialization: initialData?.specialization || 'Cardiology',
-    experience: initialData?.experience || '12',
-    clinicName: initialData?.clinicName || 'Pulse Wellness Center',
-    city: initialData?.city || 'Mumbai',
-    contactInfo: initialData?.contactInfo || '+91 98765 43210',
+    fullName: initialData?.fullName || '',
+    qualification: initialData?.qualification || '',
+    specialization: initialData?.specialization || '',
+    experience: initialData?.experience || '',
+    clinicName: initialData?.clinicName || '',
+    city: initialData?.city || '',
+    contactInfo: initialData?.contactInfo || '',
     address: initialData?.address || '',
-    licenseNumber: initialData?.licenseNumber || 'MCI-2012-987654',
-    licenseFileName: initialData?.licenseFileName || 'Medical_License_Dr_Jane_Smith.pdf',
+    licenseNumber: initialData?.licenseNumber || '',
+    licenseFileName: initialData?.licenseFileName || '',
     licenseFileUrl: initialData?.licenseFileUrl || '',
     licenseStatus: initialData?.licenseStatus || 'Verified'
   });
@@ -101,7 +101,7 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
               </div>
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-on-surface-variant">Years of Experience</label>
-                <input type="text" placeholder="e.g. 12" value={formData.experience} onChange={handleChange('experience')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="text" placeholder="" value={formData.experience} onChange={handleChange('experience')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
             </div>
           </section>
@@ -157,7 +157,7 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
                 <label className="text-[13px] font-medium text-on-surface-variant">Medical Registration / License Number</label>
                 <input 
                   type="text" 
-                  placeholder="e.g. MCI-2012-987654" 
+                  placeholder="" 
                   value={formData.licenseNumber || ''} 
                   onChange={handleChange('licenseNumber')} 
                   className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary font-mono" 

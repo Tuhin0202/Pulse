@@ -9,6 +9,9 @@ interface Doctor {
   rating: number;
   image: string;
   experience: string;
+  clinicName?: string;
+  address?: string;
+  contactInfo?: string;
 }
 
 interface ViewDoctorProfileProps {
@@ -110,17 +113,15 @@ export function ViewDoctorProfile({ doctor, onBack }: ViewDoctorProfileProps) {
                       <div className="flex items-start">
                          <MapPin className="w-5 h-5 text-[#005bb5] mr-3 mt-0.5 shrink-0" />
                          <div>
-                           <div className="font-bold text-[15px] text-[#005bb5]">Pulse Wellness Center</div>
+                           <div className="font-bold text-[15px] text-[#005bb5]">{doctor.clinicName || 'Pulse Wellness Center'}</div>
                            <div className="text-[14px] text-on-surface-variant mt-1">
-                             123 Health Avenue,<br/>
-                             Near Central Park,<br/>
-                             {doctor.city}
+                             {doctor.address || doctor.city}
                            </div>
                          </div>
                       </div>
                       <div className="flex items-center text-[14px] font-medium text-[#005bb5]">
                         <Phone className="w-4 h-4 mr-3 shrink-0" />
-                        +1 (555) 987-6543
+                        {doctor.contactInfo || ''}
                       </div>
                     </div>
                     <div className="w-full sm:w-40 h-32 bg-[#f1f5f9] rounded-lg flex items-center justify-center text-on-surface-variant text-[12px] border border-outline-variant">

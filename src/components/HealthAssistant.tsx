@@ -9,12 +9,18 @@ interface Message {
   timestamp: string;
 }
 
-export function HealthAssistant() {
+interface HealthAssistantProps {
+  patientName?: string;
+}
+
+export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) {
+  const firstName = patientName.split(' ')[0] || 'User';
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       sender: 'assistant',
-      text: "Hello John. I'm your Pulse Health Assistant. I can help you understand your symptoms, check medication schedules, or prepare for your next appointment. How can I assist you today?",
+      text: `Hello ${firstName}. I'm your Pulse Health Assistant. I can help you understand your symptoms, check medication schedules, or prepare for your next appointment. How can I assist you today?`,
       timestamp: '10:00 AM'
     }
   ]);
@@ -80,7 +86,7 @@ export function HealthAssistant() {
       {
         id: Date.now().toString(),
         sender: 'assistant',
-        text: "Hello John. I'm your Pulse Health Assistant. I can help you understand your symptoms, check medication schedules, or prepare for your next appointment. How can I assist you today?",
+        text: `Hello ${firstName}. I'm your Pulse Health Assistant. I can help you understand your symptoms, check medication schedules, or prepare for your next appointment. How can I assist you today?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);

@@ -12,14 +12,14 @@ interface PatientProfileSetupProps {
 export function PatientProfileSetup({ onComplete, initialData }: PatientProfileSetupProps) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<Partial<PatientData>>({
-    fullName: initialData?.fullName || 'John Doe',
+    fullName: initialData?.fullName || '',
     dateOfBirth: initialData?.dateOfBirth || '',
     bloodGroup: initialData?.bloodGroup || '',
-    address: initialData?.address || '123 Health St, Wellness District, San Francisco, CA 94103',
-    bloodPressure: initialData?.bloodPressure || '120/80 mmHg',
-    heartRate: initialData?.heartRate || '72 bpm',
-    height: initialData?.height || '175 cm',
-    weight: initialData?.weight || '70 kg',
+    address: initialData?.address || '',
+    bloodPressure: initialData?.bloodPressure || '',
+    heartRate: initialData?.heartRate || '',
+    height: initialData?.height || '',
+    weight: initialData?.weight || '',
   });
 
   const handleChange = (field: keyof PatientData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -68,12 +68,12 @@ export function PatientProfileSetup({ onComplete, initialData }: PatientProfileS
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-outline">
                   <Calendar className="w-4 h-4" />
                 </div>
-                <input type="text" placeholder="dd-mm-yyyy" value={formData.dateOfBirth} onChange={handleChange('dateOfBirth')} className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="text" placeholder="YYYY-MM-DD" value={formData.dateOfBirth} onChange={handleChange('dateOfBirth')} className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-[13px] font-medium text-on-surface">Calculated Age</label>
-              <input type="text" readOnly placeholder="-- years" className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] bg-surface-container-low text-primary font-medium focus:outline-none" />
+              <input type="text" readOnly placeholder="" className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] bg-surface-container-low text-primary font-medium focus:outline-none" />
             </div>
           </div>
 

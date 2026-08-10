@@ -2,6 +2,7 @@ export interface PatientData {
   fullName: string;
   dateOfBirth: string;
   bloodGroup: string;
+  gender?: string;
   address: string;
   phone: string;
   email: string;

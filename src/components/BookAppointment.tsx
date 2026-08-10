@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CalendarIcon, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 interface Doctor {

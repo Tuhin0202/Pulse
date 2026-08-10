@@ -17,9 +17,6 @@ import { DoctorProfileSetup } from './components/DoctorProfileSetup';
 import { PatientProfileSetup } from './components/PatientProfileSetup';
 import { DoctorDashboard } from './components/DoctorDashboard';
 import { PatientDashboard } from './components/PatientDashboard';
-import { HealthAssistant } from './components/HealthAssistant';
-import { BookAppointment } from './components/BookAppointment';
-import { ViewDoctorProfile } from './components/ViewDoctorProfile';
 import { PatientData, DoctorData } from './types';
 
 export default function App() {

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Star, MapPin, Phone, Clock, User, Award, Globe, Navigation, Calendar as CalendarIcon, CheckCircle2, ChevronRight, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Star, MapPin, Phone, Clock, User, Award, Globe, Navigation, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 interface Doctor {
   id: number;

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, Shield, ArrowRight, BriefcaseMedical, User } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { auth } from '../config/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { apiFetch } from '../utils/api';
 
 export function Login() {
   const navigate = useNavigate();
@@ -11,7 +14,11 @@ export function Login() {
   const [role, setRole] = useState<'doctor' | 'patient'>(initialRole);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [emailPlaceholder, setEmailPlaceholder] = useState('name@pulsehealth.com');
+  const [passwordPlaceholder, setPasswordPlaceholder] = useState('••••••••');
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,27 +26,51 @@ export function Login() {
     setIsLoading(true);
     
     try {
-      // Placeholder endpoint for login
-      // const response = await fetch('/api/v1/auth/login', { method: 'POST', body: ... });
-      // const data = await response.json();
+      if (!email || !password) {
+        throw new Error('Please provide both email and password.');
+      }
       
-      // Simulating a response where the returned role matches the selected role.
-      // To test mismatch, you could change this to return a different role.
-      const simulatedDbRole = role; 
-      
-      if (simulatedDbRole !== role) {
-        setError('Selected role does not match account role.');
-        setIsLoading(false);
+      const cleanInput = email.replace(/[\s-]/g, '');
+      const isPhone = /^\+?[0-9]{10,15}$/.test(cleanInput);
+
+      if (isPhone) {
+        const dummyEmail = `${email.replace(/[^0-9]/g, '')}@phone.pulsehealth.local`;
+        try {
+          await signInWithEmailAndPassword(auth, dummyEmail, password);
+          await auth.signOut();
+        } catch (err: any) {
+          throw new Error('Invalid phone number or password.');
+        }
+
+        // Route to OTP verification for phone numbers
+        navigate('/verify-phone', { state: { role, phone: email } });
         return;
       }
       
-      if (role === 'doctor') {
+      // 1. Sign in with Firebase Auth
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      // 2. Call our backend to sync the user and verify role
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ role })
+      });
+      
+      // 3. Navigate based on backend response
+      if (data.redirectTo) {
+        navigate(data.redirectTo);
+      } else if (role === 'doctor') {
         navigate('/doctor/dashboard');
       } else {
         navigate('/patient/dashboard');
       }
-    } catch (err) {
-      setError('An error occurred during login. Please try again.');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password.');
+      } else {
+        setError(err.message || 'An error occurred during login. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -107,8 +138,11 @@ export function Login() {
                 </div>
                 <input
                   type="text"
-                  defaultValue="name@pulsehealth.com"
-                  placeholder="name@pulsehealth.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setEmailPlaceholder('')}
+                  onBlur={() => setEmailPlaceholder('name@pulsehealth.com')}
+                  placeholder={emailPlaceholder}
                   className="w-full pl-10 pr-3 py-2.5 border border-outline-variant rounded-md bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed transition-colors"
                 />
               </div>
@@ -124,8 +158,11 @@ export function Login() {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  defaultValue="122"
-                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setPasswordPlaceholder('')}
+                  onBlur={() => setPasswordPlaceholder('••••••••')}
+                  placeholder={passwordPlaceholder}
                   className="w-full pl-10 pr-10 py-2.5 border border-outline-variant rounded-md bg-surface-container-lowest focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed transition-colors text-[16px]"
                 />
                 <button

@@ -15,11 +15,13 @@ build/
 test_documents/
 uploads/
 local_dev.db
+
 # React / Node.js
 node_modules/
 /src/dist/
 /src/build/
 .npm/
+coverage/
 
 # Environment Variables
 .env
@@ -37,12 +39,12 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-
+.log
 
 # Vercel
 .vercel
 
-# API KEYS
+# API Keys & Secrets
 firebase-service-account.json
 *service-account*.json
 *.pem
@@ -52,15 +54,7 @@ firebase-service-account.json
 secrets.json
 config.json
 
-# Node modules
-node_modules/
-node_modules
-
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
-.log
-.env
-.env
+# Documentation / Summaries
+scripts/
+WorkFlow.md
+summary.txt

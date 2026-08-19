@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from api.core.security import get_current_user
+from api.core.config import supabase_client
 from api.models.user import User
 
 router = APIRouter()
@@ -16,7 +17,7 @@ UPLOAD_DIR = os.path.join(
 )
 
 ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_FILE_SIZE = 200 * 1024  # 200KB
 
 
 def _ensure_upload_dir():
@@ -47,17 +48,22 @@ async def upload_file(
         raise HTTPException(
             status_code=400,
             detail={
-                "error": "File too large. Maximum size is 10MB.",
+                "error": "File too large. Maximum size is 200KB.",
                 "code": "FILE_TOO_LARGE",
             },
         )
 
-    _ensure_upload_dir()
     filename = f"{uuid.uuid4().hex[:12]}{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
 
-    with open(filepath, "wb") as buffer:
-        buffer.write(contents)
+    try:
+        supabase_client.storage.from_("uploads").upload(
+            path=filename,
+            file=contents,
+            file_options={"content-type": file.content_type}
+        )
+        file_url = supabase_client.storage.from_("uploads").get_public_url(filename)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Storage upload failed: {str(e)}")
 
     file_size = len(contents)
     size_str = (
@@ -68,7 +74,7 @@ async def upload_file(
 
     return {
         "success": True,
-        "fileUrl": f"/uploads/{filename}",
+        "fileUrl": file_url,
         "fileName": file.filename,
         "fileSize": size_str,
     }

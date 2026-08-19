@@ -2,6 +2,9 @@ import { useEffect } from 'react';
 import { AtSign, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { auth } from '../config/firebase';
+import { applyActionCode, sendEmailVerification } from 'firebase/auth';
+import { apiFetch } from '../utils/api';
 
 export function EmailVerification() {
   const navigate = useNavigate();
@@ -13,37 +16,83 @@ export function EmailVerification() {
   const role = location.state?.role || 'patient';
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (context === 'signup') {
+    let pollingInterval: NodeJS.Timeout;
+
+    const verifyCodeFromUrl = async () => {
+      const mode = searchParams.get('mode');
+      const oobCode = searchParams.get('oobCode');
+      
+      if (mode === 'verifyEmail' && oobCode) {
         try {
-          // Placeholder for assigning the role after verification
-          // await fetch('/api/v1/auth/assign-role', { method: 'POST', body: JSON.stringify({ role }) });
-        } catch (e) {
-          console.error(e);
+          await applyActionCode(auth, oobCode);
+          // Successfully verified
+          if (auth.currentUser) {
+            await auth.currentUser.reload();
+            if (context === 'signup') {
+              try {
+                await apiFetch('/auth/assign-role', {
+                  method: 'POST',
+                  body: JSON.stringify({ userId: auth.currentUser.uid, role })
+                });
+              } catch (err) {
+                console.error("Failed to assign role", err);
+              }
+            }
+          }
+          alert("Email successfully verified!");
+          if (context === 'signup') {
+            navigate(role === 'doctor' ? '/doctor/setup' : '/patient/setup', { state: { role } });
+          } else if (context === 'reset') {
+            navigate('/reset-password', { state: { role } });
+          }
+        } catch (error: any) {
+          console.error("Error verifying email code", error);
+          alert("Verification failed: " + error.message);
         }
-        
-        if (role === 'doctor') {
-          navigate('/doctor/setup', { state: { role } });
-        } else {
-          navigate('/patient/setup', { state: { role } });
-        }
-      } else if (context === 'reset') {
-        navigate('/reset-password', { state: { role } });
-      } else {
-        // Fallback
-        navigate('/login');
       }
-    }, 4000); // reduced from 10s to 4s for better UX testing
-    return () => clearTimeout(timer);
-  }, [navigate, context, role]);
+    };
+    
+    verifyCodeFromUrl();
+
+    // Poll if user verifies in another tab
+    pollingInterval = setInterval(async () => {
+      if (auth.currentUser) {
+        await auth.currentUser.reload();
+        if (auth.currentUser.emailVerified) {
+          clearInterval(pollingInterval);
+          if (context === 'signup') {
+            try {
+              await apiFetch('/auth/assign-role', {
+                method: 'POST',
+                body: JSON.stringify({ userId: auth.currentUser.uid, role })
+              });
+            } catch (err) {
+              console.error("Failed to assign role", err);
+            }
+            navigate(role === 'doctor' ? '/doctor/setup' : '/patient/setup', { state: { role } });
+          }
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(pollingInterval);
+  }, [navigate, context, role, searchParams]);
 
   const handleResend = async () => {
     try {
-      // Placeholder endpoint
-      // await fetch('/api/v1/auth/resend-email', { method: 'POST', body: JSON.stringify({ email }) });
-      console.log('Resent email to', email);
-    } catch (e) {
+      if (auth.currentUser) {
+        const actionCodeSettings = {
+          url: window.location.origin + '/verify-email?context=signup&role=' + role,
+          handleCodeInApp: true,
+        };
+        await sendEmailVerification(auth.currentUser, actionCodeSettings);
+        alert("A new verification link has been sent to " + email);
+      } else {
+        alert("Please login again to resend the verification email.");
+      }
+    } catch (e: any) {
       console.error(e);
+      alert("Failed to resend verification link: " + e.message);
     }
   };
 

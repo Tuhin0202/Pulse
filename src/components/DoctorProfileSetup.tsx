@@ -1,45 +1,157 @@
 import { BriefcaseMedical, Building2, ChevronDown, FileCheck, UploadCloud, ShieldCheck, FileText, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DoctorData } from '../types';
+import { apiFetch } from '../utils/api';
 
-interface DoctorProfileSetupProps {
-  onComplete: (data: Partial<DoctorData>) => void;
-  initialData?: DoctorData;
-}
-
-export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSetupProps) {
+export function DoctorProfileSetup() {
+  const navigate = useNavigate();
   const licenseFileInputRef = useRef<HTMLInputElement>(null);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<Partial<DoctorData>>({
-    fullName: initialData?.fullName || '',
-    qualification: initialData?.qualification || '',
-    specialization: initialData?.specialization || '',
-    experience: initialData?.experience || '',
-    clinicName: initialData?.clinicName || '',
-    city: initialData?.city || '',
-    contactInfo: initialData?.contactInfo || '',
-    address: initialData?.address || '',
-    licenseNumber: initialData?.licenseNumber || '',
-    licenseFileName: initialData?.licenseFileName || '',
-    licenseFileUrl: initialData?.licenseFileUrl || '',
-    licenseStatus: initialData?.licenseStatus || 'Verified'
+    fullName: '',
+    qualification: '',
+    specialization: '',
+    experience: '',
+    clinicName: '',
+    city: '',
+    contactInfo: '',
+    address: '',
+    licenseNumber: '',
+    licenseFileName: '',
+    licenseFileUrl: '',
+    licenseStatus: 'Not Uploaded',
+    aboutText: '',
+    profilePicUrl: ''
   });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const data = await apiFetch('/doctor/profile');
+        setFormData(prev => ({ ...prev, ...data }));
+      } catch (err: any) {
+        // Ignore, means new profile or not found
+      }
+    }
+    fetchProfile();
+  }, []);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const url = URL.createObjectURL(file);
-      setFormData(prev => ({
-        ...prev,
-        licenseFileName: file.name,
-        licenseFileUrl: url,
-        licenseStatus: 'Verified'
-      }));
+      if (file.size > 2 * 1024 * 1024) {
+        alert("File is too large. Max 2MB.");
+        e.target.value = '';
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const fileData = new FormData();
+        fileData.append('file', file);
+        const res = await apiFetch('/doctor/profile/upload-photo', {
+          method: 'POST',
+          body: fileData
+        });
+        setFormData(prev => ({ ...prev, profilePicUrl: res.profilePicUrl }));
+      } catch (err: any) {
+        setError(err.message || "Failed to upload photo");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    setIsLoading(true);
+    try {
+      await apiFetch('/doctor/profile/photo', { method: 'DELETE' });
+      setFormData(prev => ({ ...prev, profilePicUrl: '' }));
+    } catch (err: any) {
+      setError(err.message || "Failed to delete photo");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 200 * 1024) {
+        alert("File is too large. Max 200KB.");
+        e.target.value = '';
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const fileData = new FormData();
+        fileData.append('file', file);
+        const res = await apiFetch('/doctor/profile/upload-license', {
+          method: 'POST',
+          body: fileData
+        });
+        setFormData(prev => ({ 
+          ...prev, 
+          licenseFileUrl: res.licenseFileUrl,
+          licenseFileName: res.licenseFileName,
+          licenseStatus: res.licenseStatus
+        }));
+      } catch (err: any) {
+        setError(err.message || "Failed to upload license");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteLicense = async () => {
+    setIsLoading(true);
+    try {
+      await apiFetch('/doctor/profile/license', { method: 'DELETE' });
+      setFormData(prev => ({ ...prev, licenseFileUrl: '', licenseFileName: '', licenseStatus: 'Not Uploaded' }));
+    } catch (err: any) {
+      setError(err.message || "Failed to delete license");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleChange = (field: keyof DoctorData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    setError(null);
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Save profile
+      try {
+        await apiFetch('/doctor/profile', {
+          method: 'PUT',
+          body: JSON.stringify(formData)
+        });
+      } catch (e: any) {
+        if (e.message.includes('not found') || e.message === 'NOT_FOUND') {
+          await apiFetch('/doctor/profile', {
+            method: 'POST',
+            body: JSON.stringify(formData)
+          });
+        } else {
+          throw e;
+        }
+      }
+      
+      navigate('/doctor/profile');
+    } catch (err: any) {
+      setError(err.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,6 +168,12 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
           <p className="text-[14px] leading-[20px] text-on-surface-variant mb-6">
             Let's set up your professional profile to begin providing care.
           </p>
+
+          {error && (
+            <div className="mb-4 p-3 text-sm text-error bg-error-container/20 border border-error-container rounded-md">
+              {error}
+            </div>
+          )}
 
           <div className="flex items-center space-x-2 text-[12px] font-medium">
             <div className="flex items-center text-primary">
@@ -81,27 +199,88 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
               <BriefcaseMedical className="w-5 h-5 mr-2 text-primary" />
               Professional Identity
             </div>
+            
+            <div className="mb-6 flex flex-col md:flex-row gap-6 items-start">
+              <div className="shrink-0 flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-surface-container border-2 border-dashed border-outline-variant flex items-center justify-center overflow-hidden mb-3 relative group">
+                  {formData.profilePicUrl ? (
+                    <img src={formData.profilePicUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <UploadCloud className="w-8 h-8 text-outline" />
+                  )}
+                  <div 
+                    onClick={() => photoFileInputRef.current?.click()}
+                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity text-white text-[12px] font-bold"
+                  >
+                    Change
+                  </div>
+                </div>
+                <input 
+                  type="file" 
+                  ref={photoFileInputRef} 
+                  onChange={handlePhotoUpload} 
+                  accept=".jpg,.jpeg,.png" 
+                  className="hidden" 
+                />
+                {formData.profilePicUrl && (
+                  <button 
+                    onClick={handleDeletePhoto}
+                    className="text-error text-[12px] font-bold hover:underline"
+                  >
+                    Remove Photo
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 space-y-1.5 w-full">
+                <label className="text-[13px] font-medium text-on-surface-variant">About (Short Bio)</label>
+                <textarea 
+                  rows={4}
+                  value={formData.aboutText || ''} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, aboutText: e.target.value }))} 
+                  className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary resize-none"
+                  placeholder="Briefly describe your experience and approach to patient care..."
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-on-surface-variant">Full Name</label>
-                <input type="text" value={formData.fullName} onChange={handleChange('fullName')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="text" value={formData.fullName || ''} onChange={handleChange('fullName')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-on-surface-variant">Education Qualification</label>
-                <input type="text" value={formData.qualification} onChange={handleChange('qualification')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="text" value={formData.qualification || ''} onChange={handleChange('qualification')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-on-surface-variant">Specialization</label>
                 <div className="relative">
-                  <select value={formData.specialization} onChange={handleChange('specialization')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary appearance-none bg-transparent">
+                  <select value={formData.specialization || ''} onChange={handleChange('specialization')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary appearance-none bg-transparent">
+                    <option value="" disabled>Select Specialization</option>
                     <option>Cardiology</option>
+                    <option>Dermatology</option>
+                    <option>Endocrinology</option>
+                    <option>Gastroenterology</option>
+                    <option>General Practice</option>
+                    <option>General Surgery</option>
+                    <option>Internal Medicine</option>
+                    <option>Neurology</option>
+                    <option>Obstetrics and Gynecology</option>
+                    <option>Oncology</option>
+                    <option>Ophthalmology</option>
+                    <option>Orthopedics</option>
+                    <option>Pediatrics</option>
+                    <option>Psychiatry</option>
+                    <option>Pulmonology</option>
+                    <option>Radiology</option>
+                    <option>Urology</option>
                   </select>
                   <ChevronDown className="w-4 h-4 absolute right-3 top-3 text-outline" />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-on-surface-variant">Years of Experience</label>
-                <input type="text" placeholder="" value={formData.experience} onChange={handleChange('experience')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="text" placeholder="" value={formData.experience || ''} onChange={handleChange('experience')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
             </div>
           </section>
@@ -116,24 +295,45 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-[13px] font-medium text-on-surface-variant">Clinic/Hospital Name</label>
-                <input type="text" value={formData.clinicName} onChange={handleChange('clinicName')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="text" value={formData.clinicName || ''} onChange={handleChange('clinicName')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-on-surface-variant">City</label>
                 <div className="relative">
-                  <select value={formData.city} onChange={handleChange('city')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary appearance-none bg-transparent">
+                  <select value={formData.city || ''} onChange={handleChange('city')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary appearance-none bg-transparent">
+                    <option value="" disabled>Select City</option>
+                    <option>Ahmedabad</option>
+                    <option>Bengaluru</option>
+                    <option>Bhopal</option>
+                    <option>Chennai</option>
+                    <option>Delhi</option>
+                    <option>Hyderabad</option>
+                    <option>Indore</option>
+                    <option>Jaipur</option>
+                    <option>Kanpur</option>
+                    <option>Kochi</option>
+                    <option>Kolkata</option>
+                    <option>Lucknow</option>
+                    <option>Ludhiana</option>
                     <option>Mumbai</option>
+                    <option>Nagpur</option>
+                    <option>Nashik</option>
+                    <option>Patna</option>
+                    <option>Pune</option>
+                    <option>Surat</option>
+                    <option>Vadodara</option>
+                    <option>Visakhapatnam</option>
                   </select>
                   <ChevronDown className="w-4 h-4 absolute right-3 top-3 text-outline" />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <label className="text-[13px] font-medium text-on-surface-variant">Contact Info</label>
-                <input type="text" value={formData.contactInfo} onChange={handleChange('contactInfo')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="text" value={formData.contactInfo || ''} onChange={handleChange('contactInfo')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-[13px] font-medium text-on-surface-variant">Address</label>
-                <input type="text" value={formData.address} onChange={handleChange('address')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="text" value={formData.address || ''} onChange={handleChange('address')} className="w-full px-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
             </div>
           </section>
@@ -165,11 +365,11 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-on-surface-variant">Upload Medical License Document</label>
+                <label className="text-[13px] font-medium text-on-surface-variant">Upload Medical License Document (Max 200KB)</label>
                 <input 
                   type="file" 
                   ref={licenseFileInputRef} 
-                  onChange={handleFileUpload} 
+                  onChange={handleLicenseUpload} 
                   accept=".pdf,.jpg,.jpeg,.png" 
                   className="hidden" 
                 />
@@ -185,13 +385,22 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
                         <div className="text-[12px] text-[#005bb5] font-medium">Uploaded Medical Certificate</div>
                       </div>
                     </div>
-                    <button 
-                      type="button"
-                      onClick={() => licenseFileInputRef.current?.click()} 
-                      className="px-3 py-1.5 bg-white border border-[#005bb5] text-[#005bb5] text-[13px] font-bold rounded-lg hover:bg-[#eff6ff] transition-colors"
-                    >
-                      Replace File
-                    </button>
+                    <div className="flex space-x-2">
+                      <button 
+                        type="button"
+                        onClick={() => licenseFileInputRef.current?.click()} 
+                        className="px-3 py-1.5 bg-white border border-[#005bb5] text-[#005bb5] text-[13px] font-bold rounded-lg hover:bg-[#eff6ff] transition-colors"
+                      >
+                        Replace
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={handleDeleteLicense} 
+                        className="px-3 py-1.5 bg-white border border-error text-error text-[13px] font-bold rounded-lg hover:bg-error-container/20 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div 
@@ -205,7 +414,7 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
                       Click to upload medical license
                     </div>
                     <div className="text-[12px] text-on-surface-variant">
-                      Supports PDF, JPG, PNG (Max 10MB)
+                      Supports PDF, JPG, PNG (Max 200KB)
                     </div>
                   </div>
                 )}
@@ -219,10 +428,11 @@ export function DoctorProfileSetup({ onComplete, initialData }: DoctorProfileSet
             All information is securely stored according to medical privacy laws.
           </p>
           <button 
-            onClick={() => onComplete(formData)}
-            className="w-full md:w-auto px-8 py-2.5 bg-[#005bb5] hover:bg-primary/90 text-white rounded-md text-[14px] font-bold uppercase tracking-wide transition-colors"
+            onClick={handleSave}
+            disabled={isLoading}
+            className="w-full md:w-auto px-8 py-2.5 bg-[#005bb5] hover:bg-primary/90 text-white rounded-md text-[14px] font-bold uppercase tracking-wide transition-colors disabled:opacity-70"
           >
-            SAVE PROFILE
+            {isLoading ? 'SAVING...' : 'SAVE PROFILE'}
           </button>
         </div>
       </motion.div>

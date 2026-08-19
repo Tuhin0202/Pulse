@@ -1,29 +1,75 @@
 import { User, Calendar, MapPin, Droplet, Save, ShieldCheck, Activity, Heart, Ruler, Scale } from 'lucide-react';
 import { motion } from 'motion/react';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PatientData } from '../types';
+import { apiFetch } from '../utils/api';
 
-interface PatientProfileSetupProps {
-  onComplete: (data: Partial<PatientData>) => void;
-  initialData?: PatientData;
-}
-
-export function PatientProfileSetup({ onComplete, initialData }: PatientProfileSetupProps) {
+export function PatientProfileSetup() {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState<Partial<PatientData>>({
-    fullName: initialData?.fullName || '',
-    dateOfBirth: initialData?.dateOfBirth || '',
-    bloodGroup: initialData?.bloodGroup || '',
-    address: initialData?.address || '',
-    bloodPressure: initialData?.bloodPressure || '',
-    heartRate: initialData?.heartRate || '',
-    height: initialData?.height || '',
-    weight: initialData?.weight || '',
+    fullName: '',
+    dateOfBirth: '',
+    bloodGroup: '',
+    address: '',
+    bloodPressure: '',
+    heartRate: '',
+    height: '',
+    weight: '',
   });
+
+  // Attempt to fetch existing profile to pre-fill (if editing)
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const data = await apiFetch('/patient/profile');
+        setFormData(prev => ({ ...prev, ...data }));
+      } catch (err: any) {
+        // If 404, it means they are creating a new profile. Ignore.
+      }
+    }
+    fetchProfile();
+  }, []);
 
   const handleChange = (field: keyof PatientData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    setError(null);
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Determine if we are updating or creating. 
+      // The backend uses POST for creation and PUT for updates, 
+      // but in many implementations POST handles upsert. 
+      // We will use POST for now based on the backend /patient/profile endpoint behavior.
+      const method = formData.fullName ? 'PUT' : 'POST'; // Assuming if we fetched it, we use PUT, else POST. Actually, the backend might reject POST if exists. Let's just use PUT which works if it exists, or POST if it doesn't. 
+      // Let's just always try PUT first, if 404, try POST.
+      try {
+        await apiFetch('/patient/profile', {
+          method: 'PUT',
+          body: JSON.stringify(formData)
+        });
+      } catch (e: any) {
+        if (e.message.includes('not found') || e.message === 'NOT_FOUND') {
+          await apiFetch('/patient/profile', {
+            method: 'POST',
+            body: JSON.stringify(formData)
+          });
+        } else {
+          throw e;
+        }
+      }
+      navigate('/patient/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -46,9 +92,15 @@ export function PatientProfileSetup({ onComplete, initialData }: PatientProfileS
         <h1 className="text-[28px] leading-[36px] font-bold text-on-surface mb-2 font-serif">
           Welcome to Pulse Health
         </h1>
-        <p className="text-[14px] leading-[20px] text-on-surface-variant mb-8">
+        <p className="text-[14px] leading-[20px] text-on-surface-variant mb-6">
           Please complete your patient profile to help us provide you with personalized healthcare experiences.
         </p>
+
+        {error && (
+          <div className="mb-4 p-3 text-sm text-error bg-error-container/20 border border-error-container rounded-md">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-5">
           <div className="space-y-1.5">
@@ -68,7 +120,7 @@ export function PatientProfileSetup({ onComplete, initialData }: PatientProfileS
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-outline">
                   <Calendar className="w-4 h-4" />
                 </div>
-                <input type="text" placeholder="YYYY-MM-DD" value={formData.dateOfBirth} onChange={handleChange('dateOfBirth')} className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
+                <input type="date" value={formData.dateOfBirth || ''} onChange={handleChange('dateOfBirth')} className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-md text-[14px] focus:outline-none focus:border-primary" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -127,11 +179,12 @@ export function PatientProfileSetup({ onComplete, initialData }: PatientProfileS
             </button>
             <button 
               type="button"
-              onClick={() => onComplete(formData)}
-              className="w-1/2 bg-[#005bb5] hover:bg-primary/90 text-white py-2.5 rounded-md text-[14px] font-bold flex items-center justify-center transition-colors shadow-sm"
+              onClick={handleSave}
+              disabled={isLoading}
+              className="w-1/2 bg-[#005bb5] hover:bg-primary/90 text-white py-2.5 rounded-md text-[14px] font-bold flex items-center justify-center transition-colors shadow-sm disabled:opacity-70"
             >
               <Save className="w-4 h-4 mr-2" />
-              Save Profile
+              {isLoading ? 'Saving...' : 'Save Profile'}
             </button>
           </div>
         </div>

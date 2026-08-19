@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from api.core.security import get_current_user
+from api.core.config import supabase_client
 from api.db.session import get_db
 from api.models.rag import ChatMessage
 from api.models.user import User
@@ -53,19 +54,47 @@ async def send_message(
         _ensure_upload_dir()
         for attachment in attachments:
             if attachment.filename:  # Skip empty file fields
+                contents = await attachment.read()
+                if len(contents) > 200 * 1024:
+                    from fastapi import HTTPException
+                    raise HTTPException(
+                        status_code=400,
+                        detail={"error": f"File {attachment.filename} is too large. Max 200KB."}
+                    )
+                await attachment.seek(0)
+                
                 ext = os.path.splitext(attachment.filename)[1]
                 filename = f"chat_{uuid.uuid4().hex[:8]}{ext}"
                 filepath = os.path.join(UPLOAD_DIR, filename)
+                
                 with open(filepath, "wb") as buffer:
-                    shutil.copyfileobj(attachment.file, buffer)
-                attachment_urls.append(f"/uploads/{filename}")
+                    buffer.write(contents)
 
                 # Try to extract text from attachment for context
                 try:
                     extracted = await ocr_service.extract_prescription_text(filepath)
                     if extracted:
                         text = f"{text}\n\n[Extracted from attachment: {extracted}]"
-                except Exception:
+                except Exception as e:
+                    print(f"Assistant OCR Error: {e}")
+                    
+                # Upload to Supabase Storage
+                try:
+                    supabase_client.storage.from_("uploads").upload(
+                        path=filename,
+                        file=contents,
+                        file_options={"content-type": attachment.content_type}
+                    )
+                    file_url = supabase_client.storage.from_("uploads").get_public_url(filename)
+                    attachment_urls.append(file_url)
+                except Exception as e:
+                    print(f"Failed to upload to Supabase: {e}")
+                    attachment_urls.append(f"/uploads/{filename}")
+                    
+                # Clean up local file
+                try:
+                    os.remove(filepath)
+                except OSError:
                     pass
 
     # Save user message
@@ -78,8 +107,14 @@ async def send_message(
     )
     db.add(user_msg)
 
+    # Fetch patient UUID
+    from api.models.patient import Patient
+    pat_result = await db.execute(select(Patient).filter(Patient.firebase_uid == user.firebase_uid))
+    patient = pat_result.scalars().first()
+    pat_id = patient.id if patient else "UNREGISTERED_PATIENT"
+
     # Use RAG pipeline to generate response
-    context = await rag_service.retrieve_context(text)
+    context = await rag_service.retrieve_context(text, db=db, patient_id=pat_id)
     answer = await rag_service.generate_chat_response(text, context)
 
     # Save assistant message

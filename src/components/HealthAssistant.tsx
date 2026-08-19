@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Paperclip, Send, Trash2, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 interface Message {
   id: string;
@@ -16,14 +17,7 @@ interface HealthAssistantProps {
 export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) {
   const firstName = patientName.split(' ')[0] || 'User';
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      sender: 'assistant',
-      text: `Hello ${firstName}. I'm your Pulse Health Assistant. I can help you understand your symptoms, check medication schedules, or prepare for your next appointment. How can I assist you today?`,
-      timestamp: '10:00 AM'
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,10 +31,39 @@ export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) 
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const history = await apiFetch('/health-assistant/history');
+        if (history && history.length > 0) {
+          setMessages(history);
+        } else {
+          setMessages([{
+            id: Date.now().toString(),
+            sender: 'assistant',
+            text: `Hello ${firstName}. I'm your Pulse Health Assistant. I can help you understand your symptoms, check medication schedules, or prepare for your next appointment. How can I assist you today?`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      }
+    }
+    loadHistory();
+  }, [firstName]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      setAttachments(prev => [...prev, ...newFiles]);
+      const validFiles = newFiles.filter(file => {
+        if (file.size > 200 * 1024) {
+          alert(`File ${file.name} is too large. Max 200KB.`);
+          return false;
+        }
+        return true;
+      });
+      setAttachments(prev => [...prev, ...validFiles]);
+      e.target.value = ''; // reset input
     }
   };
 
@@ -48,7 +71,7 @@ export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) 
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (inputText.trim() === '' && attachments.length === 0) return;
 
     const newMessage: Message = {
@@ -60,18 +83,34 @@ export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) 
     };
 
     setMessages(prev => [...prev, newMessage]);
+    const currentInput = inputText;
+    const currentAttachments = [...attachments];
+    
     setInputText('');
     setAttachments([]);
     
-    // Simulate assistant response
-    setTimeout(() => {
+    try {
+      const formData = new FormData();
+      formData.append('text', currentInput);
+      currentAttachments.forEach(file => {
+        formData.append('attachments', file);
+      });
+      
+      const response = await apiFetch('/health-assistant/message', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      setMessages(prev => [...prev, response]);
+    } catch (err) {
+      console.error('Failed to send message', err);
       setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
+        id: Date.now().toString(),
         sender: 'assistant',
-        text: "I've received your message. I'm analyzing the details now.",
+        text: "Sorry, I could not process your request at this time.",
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }]);
-    }, 1500);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -81,15 +120,20 @@ export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) 
     }
   };
 
-  const clearChat = () => {
-    setMessages([
-      {
-        id: Date.now().toString(),
-        sender: 'assistant',
-        text: `Hello ${firstName}. I'm your Pulse Health Assistant. I can help you understand your symptoms, check medication schedules, or prepare for your next appointment. How can I assist you today?`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
+  const clearChat = async () => {
+    try {
+      await apiFetch('/health-assistant/history', { method: 'DELETE' });
+      setMessages([
+        {
+          id: Date.now().toString(),
+          sender: 'assistant',
+          text: `Hello ${firstName}. I'm your Pulse Health Assistant. I can help you understand your symptoms, check medication schedules, or prepare for your next appointment. How can I assist you today?`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    } catch (err) {
+      console.error('Failed to clear chat:', err);
+    }
   };
 
   return (
@@ -199,7 +243,7 @@ export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) 
             <button 
               onClick={() => fileInputRef.current?.click()}
               className="p-2 text-on-surface-variant hover:text-[#005bb5] hover:bg-[#eff6ff] rounded-full transition-colors mr-2"
-              title="Attach File (JPG, PNG, PDF)"
+              title="Attach File (Max 200KB)"
             >
               <Paperclip className="w-5 h-5" />
             </button>

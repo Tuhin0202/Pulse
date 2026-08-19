@@ -4,6 +4,9 @@ load_dotenv()
 import os
 from contextlib import asynccontextmanager
 
+# Initialize Firebase Admin SDK
+import api.core.firebase
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -20,10 +23,13 @@ UPLOAD_DIR = os.path.join(
 )
 
 
+from sqlalchemy import text
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Create local SQLite tables
+    # Startup: Create PostgreSQL tables and ensure pgvector is available
     async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     # Ensure uploads directory exists
     os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -56,4 +62,4 @@ if os.path.exists(UPLOAD_DIR):
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "db": "sqlite (mocked supabase)"}
+    return {"status": "ok", "db": "supabase (postgres)"}

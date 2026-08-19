@@ -17,45 +17,18 @@ import { DoctorProfileSetup } from './components/DoctorProfileSetup';
 import { PatientProfileSetup } from './components/PatientProfileSetup';
 import { DoctorDashboard } from './components/DoctorDashboard';
 import { PatientDashboard } from './components/PatientDashboard';
-import { PatientData, DoctorData } from './types';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { ScrollToTop } from './components/ScrollToTop';
 
 export default function App() {
   const location = useLocation();
-  const navigate = useNavigate();
-  
-  const [patientData, setPatientData] = useState<PatientData>({
-    fullName: '',
-    dateOfBirth: '',
-    bloodGroup: '',
-    address: '',
-    phone: '',
-    email: '',
-    bloodPressure: '',
-    heartRate: '',
-    height: '',
-    weight: ''
-  });
-  
-  const [doctorData, setDoctorData] = useState<DoctorData>({
-    fullName: '',
-    qualification: '',
-    specialization: '',
-    experience: '',
-    clinicName: '',
-    city: '',
-    contactInfo: '',
-    address: '',
-    licenseNumber: '',
-    licenseFileName: '',
-    licenseStatus: 'Not Uploaded'
-  });
-
   const isDashboardRoute = location.pathname.startsWith('/doctor/') || location.pathname.startsWith('/patient/') || location.pathname === '/health-assistant';
   const showUserIconsRoutes = ['/signup', '/verify-email', '/verify-phone', '/reset-password'];
   const showUserIcons = showUserIconsRoutes.includes(location.pathname);
   
   return (
     <div className="min-h-screen bg-background text-on-background selection:bg-primary-fixed selection:text-on-primary-fixed antialiased">
+      <ScrollToTop />
       {!isDashboardRoute && (
         <TopNav 
           showUserIcons={showUserIcons} 
@@ -77,24 +50,24 @@ export default function App() {
           <Route path="/verify-email" element={<EmailVerification />} />
           <Route path="/verify-phone" element={<MobileVerification />} />
           
-          <Route path="/doctor/setup" element={<DoctorProfileSetup initialData={doctorData} onComplete={(data) => { setDoctorData(prev => ({ ...prev, ...data })); navigate('/doctor/dashboard'); }} />} />
-          <Route path="/patient/setup" element={<PatientProfileSetup initialData={patientData} onComplete={(data) => { setPatientData(prev => ({ ...prev, ...data })); navigate('/patient/dashboard'); }} />} />
-          <Route path="/patient/profile/edit" element={<PatientProfileSetup initialData={patientData} onComplete={(data) => { setPatientData(prev => ({ ...prev, ...data })); navigate('/patient/dashboard'); }} />} />
+          <Route path="/doctor/setup" element={<ProtectedRoute><DoctorProfileSetup /></ProtectedRoute>} />
+          <Route path="/patient/setup" element={<ProtectedRoute><PatientProfileSetup /></ProtectedRoute>} />
+          <Route path="/patient/profile/edit" element={<ProtectedRoute><PatientProfileSetup /></ProtectedRoute>} />
           
-          <Route path="/doctor/dashboard" element={<DoctorDashboard doctorData={doctorData} patientData={patientData} onUpdatePatientData={(data) => setPatientData(prev => ({ ...prev, ...data }))} />} />
-          <Route path="/doctor/patients" element={<DoctorDashboard doctorData={doctorData} patientData={patientData} onUpdatePatientData={(data) => setPatientData(prev => ({ ...prev, ...data }))} />} />
-          <Route path="/doctor/schedule" element={<DoctorDashboard doctorData={doctorData} patientData={patientData} onUpdatePatientData={(data) => setPatientData(prev => ({ ...prev, ...data }))} />} />
-          <Route path="/doctor/patient/:id" element={<DoctorDashboard doctorData={doctorData} patientData={patientData} onUpdatePatientData={(data) => setPatientData(prev => ({ ...prev, ...data }))} />} />
-          <Route path="/doctor/profile" element={<DoctorDashboard doctorData={doctorData} patientData={patientData} onUpdatePatientData={(data) => setPatientData(prev => ({ ...prev, ...data }))} />} />
-          <Route path="/doctor/profile/edit" element={<DoctorProfileSetup initialData={doctorData} onComplete={(data) => { setDoctorData(prev => ({ ...prev, ...data })); navigate('/doctor/dashboard'); }} />} />
+          <Route path="/doctor/dashboard" element={<ProtectedRoute><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/doctor/patients" element={<ProtectedRoute><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/doctor/schedule" element={<ProtectedRoute><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/doctor/patient/:id" element={<ProtectedRoute><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/doctor/profile" element={<ProtectedRoute><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/doctor/profile/edit" element={<ProtectedRoute><DoctorProfileSetup /></ProtectedRoute>} />
           
-          <Route path="/patient/dashboard" element={<PatientDashboard patientData={patientData} />} />
-          <Route path="/patient/appointments" element={<PatientDashboard patientData={patientData} />} />
-          <Route path="/patient/prescriptions" element={<PatientDashboard patientData={patientData} />} />
-          <Route path="/patient/settings" element={<PatientDashboard patientData={patientData} />} />
-          <Route path="/patient/doctor/:id" element={<PatientDashboard patientData={patientData} />} />
-          <Route path="/patient/book/:doctorId" element={<PatientDashboard patientData={patientData} />} />
-          <Route path="/health-assistant" element={<PatientDashboard patientData={patientData} />} />
+          <Route path="/patient/dashboard" element={<ProtectedRoute><PatientDashboard /></ProtectedRoute>} />
+          <Route path="/patient/appointments" element={<ProtectedRoute><PatientDashboard /></ProtectedRoute>} />
+          <Route path="/patient/prescriptions" element={<ProtectedRoute><PatientDashboard /></ProtectedRoute>} />
+          <Route path="/patient/settings" element={<ProtectedRoute><PatientDashboard /></ProtectedRoute>} />
+          <Route path="/patient/doctor/:id" element={<ProtectedRoute><PatientDashboard /></ProtectedRoute>} />
+          <Route path="/patient/book/:doctorId" element={<ProtectedRoute><PatientDashboard /></ProtectedRoute>} />
+          <Route path="/health-assistant" element={<ProtectedRoute><PatientDashboard /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

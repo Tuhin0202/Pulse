@@ -25,4 +25,6 @@ export interface DoctorData {
   licenseFileUrl?: string;
   licenseFileName?: string;
   licenseStatus?: 'Verified' | 'Pending Verification' | 'Not Uploaded';
+  aboutText?: string;
+  profilePicUrl?: string;
 }

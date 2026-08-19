@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, Shield, ArrowRight, ArrowLeft, RectangleEllipsis } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Shield, ArrowRight, ArrowLeft, RectangleEllipsis, BriefcaseMedical, User as UserIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { auth } from '../config/firebase';
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPhoneNumber, RecaptchaVerifier, linkWithPhoneNumber } from 'firebase/auth';
 
 interface CreateAccountProps {
   mode?: 'register' | 'reset-password';
@@ -10,7 +12,8 @@ interface CreateAccountProps {
 export function CreateAccount({ mode = 'reset-password' }: CreateAccountProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = location.state?.role || 'patient';
+  const initialRole = location.state?.role || 'patient';
+  const [role, setRole] = useState<'doctor' | 'patient'>(initialRole);
   
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
@@ -40,25 +43,65 @@ export function CreateAccount({ mode = 'reset-password' }: CreateAccountProps) {
       
       try {
         if (mode === 'register') {
-          // Placeholder for registering the user
-          // await fetch('/api/v1/auth/register', { method: 'POST', body: ... });
-          
-          // The assign-role endpoint should theoretically be called after verification,
-          // but if we do it here or simulate it:
-          // await fetch('/api/v1/auth/assign-role', { method: 'POST', body: JSON.stringify({ role }) });
-          
           if (isEmail) {
+            // Register with email and password
+            const userCredential = await createUserWithEmailAndPassword(auth, cleanContact, password);
+            
+            // Send Email Verification
+            const actionCodeSettings = {
+              url: window.location.origin + '/verify-email?context=signup&role=' + role,
+              handleCodeInApp: true,
+            };
+            await sendEmailVerification(userCredential.user, actionCodeSettings);
+            
             navigate('/verify-email?context=signup', { state: { role, contact: cleanContact } });
           } else {
+            // Register with phone number
+            const testPhone = import.meta.env.VITE_TEST_PHONE_NUMBER;
+            const testOtp = import.meta.env.VITE_TEST_OTP;
+            
+            if (cleanContact === testPhone && testOtp) {
+              navigate('/verify-phone?context=signup', { state: { role, contact: cleanContact, bypass: true } });
+              return;
+            }
+
+            const dummyEmail = `${cleanContact.replace(/[^0-9]/g, '')}@phone.pulsehealth.local`;
+            try {
+              await createUserWithEmailAndPassword(auth, dummyEmail, password);
+            } catch (err: any) {
+              if (err.code === 'auth/email-already-in-use') {
+                throw new Error("Phone number already registered. Please login.");
+              }
+              throw err;
+            }
+
+            if (window.recaptchaVerifier) {
+              try { window.recaptchaVerifier.clear(); } catch(e){}
+              window.recaptchaVerifier = undefined;
+            }
+
+            window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+              'size': 'invisible'
+            });
+
+            const appVerifier = window.recaptchaVerifier;
+            const confirmationResult = await linkWithPhoneNumber(auth.currentUser!, cleanContact, appVerifier);
+            window.confirmationResult = confirmationResult;
+
             navigate('/verify-phone?context=signup', { state: { role, contact: cleanContact } });
           }
         } else {
           // Placeholder for updating password
-          // await fetch('/api/v1/auth/update-password', { method: 'PUT', body: ... });
           navigate('/login');
         }
-      } catch (e) {
-        console.error(e);
+      } catch (e: any) {
+        console.error("Auth Error:", e);
+        // Clean up recaptcha on error so user can try again
+        if (window.recaptchaVerifier) {
+          window.recaptchaVerifier.clear();
+          window.recaptchaVerifier = undefined;
+        }
+        alert("Authentication failed: " + e.message);
       } finally {
         setIsLoading(false);
       }
@@ -74,6 +117,35 @@ export function CreateAccount({ mode = 'reset-password' }: CreateAccountProps) {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-[540px] bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.05)] overflow-hidden"
       >
+        {mode === 'register' && (
+          <div className="flex p-4 bg-surface-container-lowest border-b border-outline-variant">
+            <div className="flex w-full bg-surface-container-low rounded-lg p-1">
+              <button
+                onClick={() => setRole('doctor')}
+                className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-[14px] leading-[20px] font-medium transition-colors ${
+                  role === 'doctor'
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'text-on-surface-variant hover:bg-surface-variant/50'
+                }`}
+              >
+                <BriefcaseMedical className="w-4 h-4 mr-2" />
+                Doctor
+              </button>
+              <button
+                onClick={() => setRole('patient')}
+                className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-[14px] leading-[20px] font-medium transition-colors ${
+                  role === 'patient'
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'text-on-surface-variant hover:bg-surface-variant/50'
+                }`}
+              >
+                <UserIcon className="w-4 h-4 mr-2" />
+                Patient
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="p-8">
           <div className="mb-8">
             <div className="flex items-center text-primary mb-4">
@@ -187,6 +259,7 @@ export function CreateAccount({ mode = 'reset-password' }: CreateAccountProps) {
             </div>
 
             <div className="pt-6 flex flex-col items-center space-y-4">
+              <div id="recaptcha-container"></div>
               <button
                 onClick={handleUpdate}
                 disabled={isLoading}
@@ -209,4 +282,12 @@ export function CreateAccount({ mode = 'reset-password' }: CreateAccountProps) {
       </motion.div>
     </div>
   );
+}
+
+// Add TS types for window object properties we added
+declare global {
+  interface Window {
+    recaptchaVerifier: any;
+    confirmationResult: any;
+  }
 }

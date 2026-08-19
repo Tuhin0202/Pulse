@@ -100,7 +100,7 @@ export function ViewDoctorProfile({ doctor, onBack }: ViewDoctorProfileProps) {
                 <section>
                   <h2 className="text-[20px] font-bold text-on-surface mb-4">About</h2>
                   <p className="text-[15px] text-on-surface-variant leading-relaxed">
-                    {doctor.name} is a highly acclaimed specialist specializing in {doctor.category.toLowerCase()}. With over {doctor.experience} of practice at leading medical institutions, they provide comprehensive care, focusing on preventive health and state-of-the-art diagnostic procedures.
+                    {doctor.name} is a highly acclaimed specialist specializing in {(doctor.category || '').toLowerCase()}. With over {doctor.experience} of practice at leading medical institutions, they provide comprehensive care, focusing on preventive health and state-of-the-art diagnostic procedures.
                   </p>
                 </section>
 

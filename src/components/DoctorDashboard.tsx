@@ -1,16 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Edit2, MapPin, Search, User, ClipboardList, Users, CheckCircle, Activity, Video, Calendar, FileText, PlusSquare, FileUp, ChevronDown, RotateCcw, Check, X, Printer, TrendingUp, Clock, RefreshCw, Camera, LogOut, Settings, ChevronLeft, ChevronRight, ShieldCheck, FileCheck, UploadCloud, Eye } from 'lucide-react';
+import { Bell, Edit2, MapPin, Search, User, ClipboardList, Users, CheckCircle, Activity, Video, Calendar, FileText, PlusSquare, FileUp, ChevronDown, RotateCcw, Check, X, Printer, TrendingUp, Clock, RefreshCw, Camera, LogOut, Settings, ChevronLeft, ChevronRight, ShieldCheck, FileCheck, UploadCloud, Eye, Trash2 } from 'lucide-react';
 import { DoctorData, PatientData } from '../types';
 import { PulseLogo } from './PulseLogo';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { apiFetch } from '../utils/api';
 
-interface DoctorDashboardProps {
-  doctorData?: DoctorData;
-  patientData?: PatientData;
-  onUpdatePatientData?: (data: Partial<PatientData>) => void;
-}
-
-export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }: DoctorDashboardProps) {
+export function DoctorDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -32,17 +27,60 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
   }, [id]);
 
   useEffect(() => {
-    // API Placeholder for Dashboard Stats
+    async function loadDoctorData() {
+      try {
+        const profile = await apiFetch('/doctor/profile');
+        setDoctorData(profile);
+        
+        try {
+          const scheduleTimings = await apiFetch('/doctor/schedule/timings');
+          if (scheduleTimings && scheduleTimings.length > 0) {
+            setTimings(prev => prev.map(t => {
+              const found = scheduleTimings.find((st: any) => st.day === t.day);
+              return found ? found : t;
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to load timings:', e);
+        }
+      } catch (e) {
+        console.error('Failed to load doctor profile:', e);
+      }
+    }
+    loadDoctorData();
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'Dashboard' && !id) {
-      fetch('/api/v1/doctor/dashboard-stats').catch(e => console.error(e));
+      apiFetch('/doctor/dashboard-stats')
+        .then(data => setUpcomingAppointments(data.todaysAppointments || []))
+        .catch(e => console.error(e));
     }
   }, [activeTab, id]);
 
   useEffect(() => {
-    // API Placeholder for Schedule
     if (activeTab === 'Schedule') {
       const dateStr = new Date().toISOString().split('T')[0];
-      fetch(`/api/v1/doctor/schedule?date=${dateStr}`).catch(e => console.error(e));
+      apiFetch(`/doctor/schedule?date=${dateStr}`)
+        .then(data => {
+          setUpcomingAppointments(data.appointments.map((a: any) => ({
+            ...a,
+            name: a.patientName,
+            date: data.date,
+            initial: a.patientName ? a.patientName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : '?'
+          })));
+        })
+        .catch(e => console.error(e));
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'Patients') {
+      apiFetch('/doctor/patients')
+        .then(data => {
+          setUpcomingAppointments([...(data.pastAppointments || []), ...(data.upcomingAppointments || [])]);
+        })
+        .catch(e => console.error(e));
     }
   }, [activeTab]);
   const [isScheduleDrawerOpen, setIsScheduleDrawerOpen] = useState(true);
@@ -50,6 +88,8 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
   const [rescheduleModalPatient, setRescheduleModalPatient] = useState<string | null>(null);
   const [rescheduledAppts, setRescheduledAppts] = useState<any[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
+  const [doctorData, setDoctorData] = useState<DoctorData | null>(null);
+  const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isEditingVitals, setIsEditingVitals] = useState(false);
@@ -141,8 +181,8 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
   });
   const [uploadDocType, setUploadDocType] = useState<string>('');
   const [uploadFileName, setUploadFileName] = useState<string>('');
-  const [uploadedReports, setUploadedReports] = useState<{name: string, date: string, doctor: string, type: string, fileUrl?: string}[]>([]);
-  const [uploadedPrescriptions, setUploadedPrescriptions] = useState<{name: string, date: string, doctor: string, fileUrl?: string}[]>([]);
+  const [uploadedReports, setUploadedReports] = useState<{id?: string, name: string, date: string, doctor: string, type: string, fileUrl?: string}[]>([]);
+  const [uploadedPrescriptions, setUploadedPrescriptions] = useState<{id?: string, name: string, date: string, doctor: string, fileUrl?: string}[]>([]);
   const [viewingDocument, setViewingDocument] = useState<{
     title: string;
     type: string;
@@ -157,6 +197,21 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
     if (item === 'Dashboard') navigate('/doctor/dashboard');
     else if (item === 'Patients') navigate('/doctor/patients');
     else if (item === 'Schedule') navigate('/doctor/schedule');
+  };
+
+  const handleDeleteDocument = async (docId: string | undefined, type: 'report' | 'prescription') => {
+    if (!docId || !id) return;
+    try {
+      await apiFetch(`/doctor/patient/${id}/document/${docId}`, { method: 'DELETE' });
+      if (type === 'report') {
+        setUploadedReports(prev => prev.filter(d => d.id !== docId));
+      } else {
+        setUploadedPrescriptions(prev => prev.filter(d => d.id !== docId));
+      }
+    } catch (e) {
+      console.error('Failed to delete document', e);
+      alert('Failed to delete document');
+    }
   };
 
   const handleBrowseClick = () => {
@@ -443,7 +498,20 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-[18px] font-bold text-on-surface">Timing & Availability</h2>
                   <button 
-                    onClick={() => setIsEditingTiming(!isEditingTiming)}
+                    onClick={async () => {
+                      if (isEditingTiming) {
+                        try {
+                          await apiFetch('/doctor/schedule', {
+                            method: 'PUT',
+                            body: JSON.stringify({ timings })
+                          });
+                        } catch (e) {
+                          console.error('Failed to save timings', e);
+                          alert('Failed to save schedule');
+                        }
+                      }
+                      setIsEditingTiming(!isEditingTiming);
+                    }}
                     className="text-[#005bb5] text-[14px] font-bold hover:underline flex items-center"
                   >
                     {isEditingTiming ? (
@@ -794,7 +862,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                         <button 
                           onClick={(e) => { 
                             e.stopPropagation();
-                            fetch(`/api/v1/appointments/${encodeURIComponent(apt.id)}/approve`, { method: 'PUT' }).catch(err => console.error(err));
+                            apiFetch(`/appointments/${encodeURIComponent(apt.id)}/approve`, { method: 'PUT' }).catch(err => console.error(err));
                             setUpcomingAppointments(prev => prev.map((a, idx) => idx === i ? { ...a, status: 'Approved' } : a));
                           }}
                           className="flex-1 px-4 py-2 bg-[#005bb5] text-white text-[14px] font-bold rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center"
@@ -1219,14 +1287,6 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                        onClick={() => {
                          if (isEditingVitals) {
                            fetch(`/api/v1/doctor/patient/${id}/vitals`, { method: 'PUT', body: JSON.stringify(patientVitals) }).catch(err => console.error(err));
-                           if (onUpdatePatientData) {
-                             onUpdatePatientData({
-                               bloodPressure: patientVitals.bloodPressure.includes('mmHg') ? patientVitals.bloodPressure : `${patientVitals.bloodPressure} mmHg`,
-                               heartRate: patientVitals.heartRate.includes('bpm') ? patientVitals.heartRate : `${patientVitals.heartRate} bpm`,
-                               height: patientVitals.height.includes('cm') ? patientVitals.height : `${patientVitals.height} cm`,
-                               weight: patientVitals.weight.includes('kg') ? patientVitals.weight : `${patientVitals.weight} kg`,
-                             });
-                           }
                          }
                          setIsEditingVitals(!isEditingVitals);
                        }}
@@ -1305,7 +1365,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                  <div className="bg-white rounded-xl border border-outline-variant p-6 shadow-sm">
                    <div className="flex justify-between items-center mb-6">
                      <h3 className="text-[16px] font-bold text-on-surface">Upload Documents</h3>
-                     <span className="text-[12px] font-medium text-on-surface-variant">Max file size: 10MB</span>
+                     <span className="text-[12px] font-medium text-on-surface-variant">Max file size: 200KB</span>
                    </div>
                    
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -1350,7 +1410,13 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                         accept={uploadDocType === 'report' ? '.pdf,.jpg,.jpeg,.png' : uploadDocType === 'prescription' ? '.pdf,.jpg,.jpeg,.png' : ''}
                         onChange={() => {
                           if (fileInputRef.current?.files?.length) {
-                            setUploadFileName(fileInputRef.current.files[0].name);
+                            const file = fileInputRef.current.files[0];
+                            if (file.size > 200 * 1024) {
+                                alert("File is too large. Max 200KB.");
+                                fileInputRef.current.value = '';
+                                return;
+                            }
+                            setUploadFileName(file.name);
                           }
                         }}
                       />
@@ -1387,9 +1453,9 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                         fetch(`/api/v1/doctor/patient/${id}/upload-document`, { method: 'POST' }).catch(err => console.error(err));
                         
                         if (uploadDocType === 'report') {
-                          setUploadedReports(prev => [...prev, { name: uploadFileName, date: dateStr, doctor: doctorData?.fullName || 'Dr. Jane Smith', type: ext, fileUrl }]);
+                          setUploadedReports(prev => [...prev, { id: 'temp-'+Date.now(), name: uploadFileName, date: dateStr, doctor: doctorData?.fullName || 'Dr. Jane Smith', type: ext, fileUrl }]);
                         } else if (uploadDocType === 'prescription') {
-                          setUploadedPrescriptions(prev => [...prev, { name: uploadFileName, date: dateStr, doctor: doctorData?.fullName || 'Dr. Jane Smith', fileUrl }]);
+                          setUploadedPrescriptions(prev => [...prev, { id: 'temp-'+Date.now(), name: uploadFileName, date: dateStr, doctor: doctorData?.fullName || 'Dr. Jane Smith', fileUrl }]);
                         }
                         
                         setUploadDocType('');
@@ -1435,6 +1501,15 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                            >
                              View {doc.type}
                            </button>
+                           {doc.id && (
+                             <button
+                               onClick={() => handleDeleteDocument(doc.id, 'report')}
+                               className="px-2 py-1.5 bg-white border border-outline-variant text-red-600 rounded-md hover:bg-red-50 transition-colors"
+                               title="Delete Document"
+                             >
+                               <Trash2 className="w-4 h-4" />
+                             </button>
+                           )}
                          </div>
                        </div>
                      ))}
@@ -1448,7 +1523,7 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                    
                    <div className="space-y-4">
                      {[
-                       ...uploadedPrescriptions.map(p => ({ date: p.date, title: `Prescription: ${p.name}`, diag: 'Uploaded Document', doctor: p.doctor, fileUrl: p.fileUrl }))
+                       ...uploadedPrescriptions.map(p => ({ id: p.id, date: p.date, title: `Prescription: ${p.name}`, diag: 'Uploaded Document', doctor: p.doctor, fileUrl: p.fileUrl }))
                      ].map((history, i) => (
                        <div key={i} className="flex items-start justify-between p-4 border-b border-outline-variant last:border-0">
                          <div>
@@ -1459,19 +1534,30 @@ export function DoctorDashboard({ doctorData, patientData, onUpdatePatientData }
                            <div className="text-[13px] text-on-surface-variant mb-2">Diagnosis: {history.diag}</div>
                            <div className="text-[12px] font-medium text-on-surface-variant">Attending: {history.doctor}</div>
                          </div>
-                         <button 
-                           onClick={() => setViewingDocument({
-                             title: history.title,
-                             type: 'Prescription / Medical Record',
-                             date: history.date,
-                             doctor: history.doctor,
-                             fileUrl: history.fileUrl,
-                             details: `Official medical prescription uploaded for patient clinical history.`
-                           })}
-                           className="px-3 py-1.5 bg-[#eff6ff] text-[#005bb5] text-[13px] font-bold rounded-md hover:bg-[#dbeafe] transition-colors"
-                         >
-                           View Details
-                         </button>
+                         <div className="flex items-center space-x-2">
+                           <button 
+                             onClick={() => setViewingDocument({
+                               title: history.title,
+                               type: 'Prescription / Medical Record',
+                               date: history.date,
+                               doctor: history.doctor,
+                               fileUrl: history.fileUrl,
+                               details: `Official medical prescription uploaded for patient clinical history.`
+                             })}
+                             className="px-3 py-1.5 bg-[#eff6ff] text-[#005bb5] text-[13px] font-bold rounded-md hover:bg-[#dbeafe] transition-colors"
+                           >
+                             View Details
+                           </button>
+                           {history.id && (
+                             <button
+                               onClick={() => handleDeleteDocument(history.id, 'prescription')}
+                               className="px-2 py-1.5 bg-white border border-outline-variant text-red-600 rounded-md hover:bg-red-50 transition-colors"
+                               title="Delete Prescription"
+                             >
+                               <Trash2 className="w-4 h-4" />
+                             </button>
+                           )}
+                         </div>
                        </div>
                      ))}
                    </div>

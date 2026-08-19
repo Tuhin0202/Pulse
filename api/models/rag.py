@@ -1,3 +1,4 @@
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text, func
 
 from api.db.base import Base
@@ -9,9 +10,7 @@ class DocumentChunk(Base):
     id = Column(String, primary_key=True, index=True)  # UUID
     document_id = Column(String, ForeignKey("documents.id"))
     chunk_text = Column(Text, nullable=False)
-    # Mocking pgvector for SQLite. We store embeddings as JSON strings or omit.
-    # In Supabase/pgvector, this would be: embedding = Column(Vector(768))
-    embedding_mock = Column(Text, nullable=True)
+    embedding = Column(Vector(768))
 
 
 class ChatMessage(Base):

@@ -5,14 +5,11 @@ import { ViewDoctorProfile } from './ViewDoctorProfile';
 import { BookAppointment } from './BookAppointment';
 import { HealthAssistant } from './HealthAssistant';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { apiFetch } from '../utils/api';
 
 import { PulseLogo } from './PulseLogo';
 
-interface PatientDashboardProps {
-  patientData?: PatientData;
-}
-
-export function PatientDashboard({ patientData }: PatientDashboardProps) {
+export function PatientDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id, doctorId } = useParams();
@@ -36,10 +33,11 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const [bookingDoctor, setBookingDoctor] = useState<any>(null);
-  const [bookings, setBookings] = useState<{[doctorId: number]: { date: string, slot: string }}>({});
+  const [bookings, setBookings] = useState<{[doctorId: number]: { id?: string, date: string, slot: string }}>({});
   const [viewingRecord, setViewingRecord] = useState<any | null>(null);
   const [doctors, setDoctors] = useState<any[]>([]);
   const [records, setRecords] = useState<any[]>([]);
+  const [patientData, setPatientData] = useState<PatientData | null>(null);
 
   const filteredDoctors = doctors.filter(doc => {
     return (
@@ -65,16 +63,41 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
   });
 
   useEffect(() => {
-    fetch('/api/v1/doctors').then(r => r.json()).then(setDoctors).catch(() => {});
-    fetch('/api/v1/patient/records').then(r => r.json()).then(setRecords).catch(() => {});
+    async function loadDashboardData() {
+      try {
+        const [docsRes, recsRes, patRes, apptsRes] = await Promise.all([
+          apiFetch('/doctors').catch(() => []),
+          apiFetch('/patient/records').catch(() => []),
+          apiFetch('/patient/profile').catch(() => null),
+          apiFetch('/patient/appointments').catch(() => [])
+        ]);
+        
+        if (docsRes) setDoctors(docsRes);
+        if (recsRes) setRecords(recsRes);
+        if (patRes) setPatientData(patRes);
+        
+        if (apptsRes) {
+          const fetchedBookings: any = {};
+          apptsRes.forEach((appt: any) => {
+            if (appt.status !== 'Cancelled') {
+              fetchedBookings[appt.doctorId] = { id: appt.id, date: appt.date, slot: appt.timeSlot };
+            }
+          });
+          setBookings(fetchedBookings);
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+      }
+    }
+    loadDashboardData();
   }, []);
 
   useEffect(() => {
     if (activeTab === 'Book' && doctorId) {
-      const doc = doctors.find(d => d.id === parseInt(doctorId));
+      const doc = doctors.find(d => String(d.id) === String(doctorId));
       if (doc) setBookingDoctor(doc);
     } else if (activeTab === 'Search' && id) {
-      const doc = doctors.find(d => d.id === parseInt(id));
+      const doc = doctors.find(d => String(d.id) === String(id));
       if (doc) setSelectedDoctor(doc);
     }
   }, [id, doctorId, activeTab, doctors]);
@@ -209,12 +232,21 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
           <BookAppointment 
             doctor={bookingDoctor}
             onBack={() => { setBookingDoctor(null); navigate('/patient/appointments'); }}
-            onBook={(date, slot) => {
-              setBookings(prev => ({
-                ...prev,
-                [bookingDoctor.id]: { date, slot }
-              }));
-              navigate('/patient/dashboard');
+            onBook={async (date, slot) => {
+              try {
+                await apiFetch('/appointments/', {
+                  method: 'POST',
+                  body: JSON.stringify({ doctorId: bookingDoctor.id, date, timeSlot: slot })
+                });
+                // Optimistically update
+                setBookings(prev => ({
+                  ...prev,
+                  [bookingDoctor.id]: { date, slot }
+                }));
+                navigate('/patient/dashboard');
+              } catch (e: any) {
+                alert(e.message || 'Failed to book appointment');
+              }
             }}
             onCancel={() => {
               setBookings(prev => {
@@ -226,11 +258,15 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
               navigate('/patient/appointments');
             }}
           />
+        ) : activeTab === 'Book' && !bookingDoctor ? (
+          <div className="flex justify-center py-20 text-on-surface-variant font-medium">Loading doctor details...</div>
         ) : selectedDoctor ? (
           <ViewDoctorProfile 
             doctor={selectedDoctor} 
             onBack={() => { setSelectedDoctor(null); navigate('/patient/appointments'); }} 
           />
+        ) : activeTab === 'Search' && id && !selectedDoctor ? (
+          <div className="flex justify-center py-20 text-on-surface-variant font-medium">Loading profile...</div>
         ) : activeTab === 'Appointments' || activeTab === 'Search' ? (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -320,10 +356,17 @@ export function PatientDashboard({ patientData }: PatientDashboardProps) {
                               <span>Booked: {new Date(bookings[doctor.id].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {bookings[doctor.id].slot}</span>
                            </div>
                            <button 
-                             onClick={() => {
-                               const newBookings = { ...bookings };
-                               delete newBookings[doctor.id];
-                               setBookings(newBookings);
+                             onClick={async () => {
+                               try {
+                                 if (bookings[doctor.id].id) {
+                                   await apiFetch(`/appointments/${bookings[doctor.id].id}`, { method: 'DELETE' });
+                                 }
+                                 const newBookings = { ...bookings };
+                                 delete newBookings[doctor.id];
+                                 setBookings(newBookings);
+                               } catch (e: any) {
+                                 alert(e.message || 'Failed to cancel booking');
+                               }
                              }}
                              className="w-full px-3 py-2 border border-red-600 text-red-600 rounded-md text-[13px] font-bold hover:bg-red-50 transition-colors"
                            >

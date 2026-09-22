@@ -10,4 +10,5 @@ uvicorn
 firebase-admin
 requests
 SQLAlchemy
-aiosqlite
+asyncpg
+pgvector

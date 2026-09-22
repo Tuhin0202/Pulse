@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from api.core.security import get_current_user
+from api.core.config import supabase_client
 from api.db.session import get_db
 from api.models.appointment import Appointment
 from api.models.doctor import Doctor
@@ -23,6 +24,7 @@ from api.schemas.doctor import (
 from api.schemas.document import VitalUpdate
 from api.schemas.schedule import ScheduleUpdateRequest
 from api.services.ocr import ocr_service
+from api.services.rag_service import rag_service
 
 router = APIRouter()
 
@@ -179,15 +181,34 @@ async def upload_photo(
             detail={"error": "Only doctors can upload photos", "code": "FORBIDDEN"},
         )
 
-    _ensure_upload_dir()
+    # Validate file size (max 2MB for profile photo)
+    contents = await file.read()
+    if len(contents) > 2 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "File too large. Max 2MB.", "code": "FILE_TOO_LARGE"},
+        )
+    await file.seek(0)
+
     ext = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
     filename = f"profile_{user.firebase_uid}{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
 
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    file_url = f"/uploads/{filename}"
+    # Upload to Supabase Storage in profile_photo bucket
+    try:
+        supabase_client.storage.from_("profile_photo").upload(
+            path=filename,
+            file=contents,
+            file_options={"content-type": file.content_type, "upsert": "true"}
+        )
+        file_url = supabase_client.storage.from_("profile_photo").get_public_url(filename)
+    except Exception as e:
+        print(f"Failed to upload to Supabase profile_photo bucket: {e}")
+        # Fallback for local development if bucket fails
+        _ensure_upload_dir()
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        with open(filepath, "wb") as buffer:
+            buffer.write(contents)
+        file_url = f"/uploads/{filename}"
 
     result = await db.execute(
         select(Doctor).filter(Doctor.firebase_uid == user.firebase_uid)
@@ -213,12 +234,12 @@ async def upload_license(
             detail={"error": "Only doctors can upload licenses", "code": "FORBIDDEN"},
         )
 
-    # Validate file size (max 10MB)
+    # Validate file size (max 200KB)
     contents = await file.read()
-    if len(contents) > 10 * 1024 * 1024:
+    if len(contents) > 200 * 1024:
         raise HTTPException(
             status_code=400,
-            detail={"error": "File too large. Max 10MB.", "code": "FILE_TOO_LARGE"},
+            detail={"error": "File too large. Max 200KB.", "code": "FILE_TOO_LARGE"},
         )
     await file.seek(0)
 
@@ -230,14 +251,30 @@ async def upload_license(
     with open(filepath, "wb") as buffer:
         buffer.write(contents)
 
-    file_url = f"/uploads/{filename}"
-
-    # Run OCR on the license document
+    # Run OCR on the license document locally
     try:
         extracted_text = await ocr_service.extract_prescription_text(filepath)
     except Exception as e:
         print(f"License OCR error (non-blocking): {e}")
         extracted_text = None
+        
+    # Upload to Supabase Storage
+    try:
+        supabase_client.storage.from_("uploads").upload(
+            path=filename,
+            file=contents,
+            file_options={"content-type": file.content_type}
+        )
+        file_url = supabase_client.storage.from_("uploads").get_public_url(filename)
+    except Exception as e:
+        print(f"Failed to upload to Supabase: {e}")
+        file_url = f"/uploads/{filename}" # fallback to local if it fails
+        
+    # Clean up local file
+    try:
+        os.remove(filepath)
+    except OSError:
+        pass
 
     result = await db.execute(
         select(Doctor).filter(Doctor.firebase_uid == user.firebase_uid)
@@ -255,6 +292,78 @@ async def upload_license(
         "licenseFileName": file.filename,
         "licenseStatus": "Pending Verification",
     }
+
+
+@router.delete("/profile/photo")
+async def delete_photo(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if user.role != "doctor":
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "Only doctors can delete photos", "code": "FORBIDDEN"},
+        )
+
+    result = await db.execute(
+        select(Doctor).filter(Doctor.firebase_uid == user.firebase_uid)
+    )
+    doc = result.scalars().first()
+    if not doc:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Doctor profile not found", "code": "NOT_FOUND"},
+        )
+
+    if doc.profile_pic_url:
+        # Extract filename from URL if it's a Supabase URL or local URL
+        filename = doc.profile_pic_url.split("/")[-1]
+        try:
+            supabase_client.storage.from_("profile_photo").remove([filename])
+        except Exception as e:
+            print(f"Failed to delete from Supabase: {e}")
+            
+        doc.profile_pic_url = None
+        await db.commit()
+
+    return {"success": True}
+
+
+@router.delete("/profile/license")
+async def delete_license(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if user.role != "doctor":
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "Only doctors can delete licenses", "code": "FORBIDDEN"},
+        )
+
+    result = await db.execute(
+        select(Doctor).filter(Doctor.firebase_uid == user.firebase_uid)
+    )
+    doc = result.scalars().first()
+    if not doc:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Doctor profile not found", "code": "NOT_FOUND"},
+        )
+
+    if doc.license_file_url:
+        # Extract filename from URL
+        filename = doc.license_file_url.split("/")[-1]
+        try:
+            supabase_client.storage.from_("uploads").remove([filename])
+        except Exception as e:
+            print(f"Failed to delete from Supabase: {e}")
+            
+        doc.license_file_url = None
+        doc.license_file_name = None
+        doc.license_status = "Not Uploaded"
+        await db.commit()
+
+    return {"success": True}
 
 
 # 20. PUT /doctor/schedule
@@ -301,6 +410,43 @@ async def update_schedule(
 
     await db.commit()
     return {"success": True}
+
+
+@router.get("/schedule/timings")
+async def get_schedule_timings(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if user.role != "doctor":
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "Only doctors can view their schedule timings", "code": "FORBIDDEN"},
+        )
+
+    result = await db.execute(
+        select(Doctor).filter(Doctor.firebase_uid == user.firebase_uid)
+    )
+    doc = result.scalars().first()
+    if not doc:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Doctor profile not found", "code": "NOT_FOUND"},
+        )
+
+    existing = await db.execute(
+        select(DoctorSchedule).filter(DoctorSchedule.doctor_id == doc.id)
+    )
+    
+    timings = []
+    for entry in existing.scalars().all():
+        timings.append({
+            "day": entry.day,
+            "start": entry.start_time,
+            "end": entry.end_time,
+            "isWorking": entry.is_working,
+        })
+        
+    return timings
 
 
 # ─── Dashboard & Stats ─────────────────────────────────────────
@@ -652,31 +798,50 @@ async def upload_document(
             detail={"error": "Only doctors can upload documents", "code": "FORBIDDEN"},
         )
 
+    contents = await file.read()
+    file_size = len(contents)
+    if file_size > 200 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "File too large. Max 200KB.", "code": "FILE_TOO_LARGE"},
+        )
+        
     _ensure_upload_dir()
     ext = os.path.splitext(file.filename)[1] if file.filename else ""
     doc_id = str(uuid.uuid4())
     filename = f"doc_{doc_id}{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
 
-    contents = await file.read()
-    file_size = len(contents)
     with open(filepath, "wb") as buffer:
         buffer.write(contents)
 
-    file_url = f"/uploads/{filename}"
-    file_format = format or ext.replace(".", "").upper() or "PDF"
-    size_str = (
-        f"{file_size / (1024 * 1024):.1f} MB"
-        if file_size > 1024 * 1024
-        else f"{file_size / 1024:.0f} KB"
-    )
-
-    # Run OCR
+    # Run OCR locally
     extracted_text = None
     try:
         extracted_text = await ocr_service.extract_prescription_text(filepath)
     except Exception as e:
         print(f"Document OCR error (non-blocking): {e}")
+
+    # Upload to Supabase Storage
+    try:
+        supabase_client.storage.from_("uploads").upload(
+            path=filename,
+            file=contents,
+            file_options={"content-type": file.content_type}
+        )
+        file_url = supabase_client.storage.from_("uploads").get_public_url(filename)
+    except Exception as e:
+        print(f"Failed to upload to Supabase: {e}")
+        file_url = f"/uploads/{filename}"
+        
+    # Clean up local file
+    try:
+        os.remove(filepath)
+    except OSError:
+        pass
+
+    file_format = format or ext.replace(".", "").upper() or "PDF"
+    size_str = f"{file_size / 1024:.0f} KB"
 
     # Get doctor info
     doc_result = await db.execute(
@@ -700,6 +865,23 @@ async def upload_document(
     )
     db.add(document)
     await db.commit()
+
+    if extracted_text:
+        from api.models.rag import DocumentChunk
+        chunks = rag_service.chunk_text(extracted_text)
+        for chunk in chunks:
+            try:
+                vector = await rag_service.vectorize_text(chunk)
+                doc_chunk = DocumentChunk(
+                    id=str(uuid.uuid4()),
+                    document_id=doc_id,
+                    chunk_text=chunk,
+                    embedding=vector
+                )
+                db.add(doc_chunk)
+            except Exception as e:
+                print(f"Failed to vectorize chunk: {e}")
+        await db.commit()
 
     return {
         "success": True,
@@ -745,6 +927,46 @@ async def get_lab_results(
         for d in docs
     ]
 
+# 27b. DELETE /doctor/patient/{patientId}/document/{documentId}
+@router.delete("/patient/{patient_id}/document/{document_id}")
+async def delete_document(
+    patient_id: str,
+    document_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if user.role != "doctor":
+        raise HTTPException(status_code=403, detail={"error": "Forbidden"})
+
+    # Fetch document
+    result = await db.execute(
+        select(Document).filter(Document.id == document_id, Document.patient_id == patient_id)
+    )
+    doc = result.scalars().first()
+    if not doc:
+        raise HTTPException(status_code=404, detail={"error": "Document not found"})
+
+    # Delete from Supabase Storage
+    if doc.file_url:
+        try:
+            filename = doc.file_url.split("/")[-1]
+            supabase_client.storage.from_("uploads").remove([filename])
+        except Exception as e:
+            print(f"Storage delete error: {e}")
+
+    # Delete AI chunks (memory)
+    from api.models.rag import DocumentChunk
+    chunks_result = await db.execute(
+        select(DocumentChunk).filter(DocumentChunk.document_id == document_id)
+    )
+    for chunk in chunks_result.scalars().all():
+        await db.delete(chunk)
+
+    # Delete document record
+    await db.delete(doc)
+    await db.commit()
+
+    return {"success": True}
 
 # 28. GET /doctor/patient/{patientId}/medical-history
 @router.get("/patient/{patient_id}/medical-history")

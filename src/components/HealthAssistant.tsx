@@ -6,7 +6,7 @@ interface Message {
   id: string;
   sender: 'user' | 'assistant';
   text: string;
-  attachments?: File[];
+  attachments?: (File | string)[];
   timestamp: string;
 }
 
@@ -15,7 +15,7 @@ interface HealthAssistantProps {
 }
 
 export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) {
-  const firstName = patientName.split(' ')[0] || 'User';
+  const firstName = (patientName || 'User').split(' ')[0] || 'User';
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -184,16 +184,24 @@ export function HealthAssistant({ patientName = 'User' }: HealthAssistantProps) 
                 
                 {message.attachments && message.attachments.length > 0 && (
                   <div className={`flex flex-wrap gap-2 ${message.text ? 'mt-3' : ''}`}>
-                    {message.attachments.map((file, i) => (
-                      <div key={i} className={`flex items-center p-2 rounded-lg text-[13px] ${message.sender === 'user' ? 'bg-white/20' : 'bg-[#f1f5f9]'}`}>
-                        {file.type.includes('image') ? (
-                          <ImageIcon className="w-4 h-4 mr-2" />
-                        ) : (
-                          <FileText className="w-4 h-4 mr-2" />
-                        )}
-                        <span className="truncate max-w-[150px]">{file.name}</span>
-                      </div>
-                    ))}
+                    {message.attachments.map((file, i) => {
+                      const isFileObject = typeof file !== 'string';
+                      const fileName = isFileObject ? (file as File).name : (file as string).split('/').pop() || 'Attachment';
+                      const isImage = isFileObject 
+                        ? (file as File).type.includes('image')
+                        : (file as string).match(/\.(jpeg|jpg|gif|png)$/i) != null;
+
+                      return (
+                        <div key={i} className={`flex items-center p-2 rounded-lg text-[13px] ${message.sender === 'user' ? 'bg-white/20' : 'bg-[#f1f5f9]'}`}>
+                          {isImage ? (
+                            <ImageIcon className="w-4 h-4 mr-2" />
+                          ) : (
+                            <FileText className="w-4 h-4 mr-2" />
+                          )}
+                          <span className="truncate max-w-[150px]">{fileName}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
